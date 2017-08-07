@@ -537,13 +537,13 @@ function writeFile(file, data) {
     result = true;
   }
   catch(e if (e.result === Components.results.NS_ERROR_FILE_IS_LOCKED)) {
-    errorAlert("Write failed because file is locked:\n" + file.path, true);
+    errorAlert("Write failed because file is locked:\n" + file.path);
   }
   catch(e if (e.result === Components.results.NS_ERROR_FILE_READ_ONLY)) {
-    errorAlert("Write failed because file is readonly:\n" + file.path, true);
+    errorAlert("Write failed because file is readonly:\n" + file.path);
   }
   catch(e if (e.result === Components.results.NS_ERROR_FILE_ACCESS_DENIED)) {
-    errorAlert("Write failed because access is denied:\n" + file.path, true);
+    errorAlert("Write failed because access is denied:\n" + file.path);
   }
   catch(e) {
     errorAlert(e.toString(), true);
