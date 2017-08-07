@@ -351,6 +351,12 @@ function prefShouldBeIncluded(pref, filter, stats) {
         }
       }
     }
+    else if(typeof(filter.include) === "function") {
+      if(filter.include(pref)) {
+        included = true;
+        stats.incFilterMatches++;
+      }
+    }
     else fatalError("Invalid include filter", true);
   }
   if(filter.exclude) {
@@ -383,6 +389,12 @@ function prefShouldBeIncluded(pref, filter, stats) {
           if(filter.debug) {
             console.log(pref.name + " name matched exclude array");
           }
+        }
+      }
+      else if(typeof(filter.exclude) === "function") {
+        if(filter.exclude(pref)) {
+          included = false;
+          stats.excFilterMatches++;
         }
       }
       else fatalError("Invalid exclude filter", true);
