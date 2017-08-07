@@ -602,3 +602,5 @@ function log(msg) {
     console.log(gpe.prefix + msg);
   }
 }
+
+// The End.  If you want to add filtering code you could do it below.
