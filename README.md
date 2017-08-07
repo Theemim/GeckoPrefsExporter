@@ -39,5 +39,5 @@ There is an include/exclude filter to control which prefs will be exported.  The
 
 Every version checked in here *should* be functional.  If you run into any problems please let me know.
 
-[Getting Started](https://github.com/Theemim/GeckoPrefsExporter/wiki)
+[Wiki](https://github.com/Theemim/GeckoPrefsExporter/wiki)
 
