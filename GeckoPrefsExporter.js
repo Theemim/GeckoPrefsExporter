@@ -356,7 +356,7 @@ function prefShouldBeIncluded(pref, filter, stats) {
         included = true;
         stats.incFilterMatches++;
         if(filter.debug) {
-          console.log(pref.name + " name matched include function");
+          console.log(pref.name + " matched include function");
         }
       }
     }
@@ -399,7 +399,7 @@ function prefShouldBeIncluded(pref, filter, stats) {
           included = false;
           stats.excFilterMatches++;
           if(filter.debug) {
-            console.log(pref.name + " name matched exclude function");
+            console.log(pref.name + " matched exclude function");
           }
         }
       }
