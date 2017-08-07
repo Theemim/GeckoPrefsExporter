@@ -51,7 +51,7 @@ var gpe = {
   name:    "GeckoPrefsExporter",
   version: "1",
   desc:    "GeckoPrefsExporter v1",
-  tag:     "[GPE] ",
+  prefix:  "[GPE] ",
 };
 var prefs = [];
 var stats = {
@@ -79,7 +79,7 @@ var stats = {
 };
 var statsTableWidth = 27;
 
-log(gpe.desc, "Started");
+log(gpe.desc + " Started");
 // Module checks for different environments
 if(typeof(Components) === "undefined") {
   fatalError("Components is undefined.  Are you running in browser context?", false);
@@ -571,7 +571,7 @@ function fatalError(msg, canAlert) {
   if(canAlert) {
     errorAlert(msg);
   }
-  throw(gpe.tag + msg);
+  throw(gpe.prefix + msg);
 }
 
 function errorAlert(msg) {
@@ -581,7 +581,6 @@ function errorAlert(msg) {
 
 function log(msg) {
   if(typeof(console) !== "undefined") {
-    msg = gpe.tag + msg;
-    console.log(msg);
+    console.log(gpe.prefix + msg);
   }
 }
