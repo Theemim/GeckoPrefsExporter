@@ -18,23 +18,25 @@ browser.fixup.hide_user_pass • default • boolean • true • true
 There is an include/exclude filter to control which prefs will be exported.  There are a number of options to control what information is included in the exports.  Plus some stats are collected.  This is from a Firefox 57 Nightly I was testing:
 
 ```
-[GPE] numPrefs:             3171
-[GPE] numUsersetPrefs:       119
-[GPE] numDefaultPrefs:      3052
-[GPE] numLockedPrefs:          0
-[GPE] numBooleanPrefs:      1528
-[GPE] numIntegerPrefs:       826
-[GPE] numStringPrefs:        817
-[GPE] numComplexPrefs:        27
-[GPE] numTypeErrors:           0
-[GPE] numUserValues:        3171
-[GPE] numDefValues:         3080
-[GPE] maxPrefNameLen:         73
-[GPE] maxUserValueLen:      2761
-[GPE] maxDefValueLen:       2761
-[GPE] incFilterMatches:      N/A
-[GPE] excFilterMatches:      N/A
-[GPE] numPrefsForExport:    3171
+[GPE] numPrefs:              3172
+[GPE] numUsersetPrefs:        122
+[GPE] numDefaultPrefs:       3050
+[GPE] numLockedPrefs:           0
+[GPE] numBooleanPrefs:       1528
+[GPE] numIntegerPrefs:        826
+[GPE] numStringPrefs:         818
+[GPE] numLocalizedPrefs:       27
+[GPE] numNonAsciiPrefs:         2
+[GPE] numNonExtAsciiPrefs:      2
+[GPE] numTypeErrors:            0
+[GPE] numUserValues:         3172
+[GPE] numDefValues:          3080
+[GPE] maxPrefNameLen:          73
+[GPE] maxUserValueLen:       2761
+[GPE] maxDefValueLen:        2761
+[GPE] incFilterMatches:       N/A
+[GPE] excFilterMatches:       N/A
+[GPE] numPrefsForExport:     3172
 ```
 
 Every version checked in here *should* be functional.  If you run into any problems please let me know.
