@@ -15,7 +15,7 @@ browser.fixup.domainwhitelist.localhost • default • boolean • true • tru
 browser.fixup.hide_user_pass • default • boolean • true • true
 ```
 
-There is an include/exclude filter to control which prefs will be exported.  There are a number of options to control what information is included in the exports.  Plus some stats are collected:
+There is an include/exclude filter to control which prefs will be exported.  There are a number of options to control what information is included in the exports.  Plus some stats are collected.  This is from a Firefox 57 Nightly I was testing:
 
 ```
 [GPE] numPrefs:             3171
@@ -36,9 +36,8 @@ There is an include/exclude filter to control which prefs will be exported.  The
 [GPE] excFilterMatches:      N/A
 [GPE] numPrefsForExport:    3171
 ```
-That is from a Firefox 57 Nightly I am testing.  As you can see, there are many preferences.
 
-This repository is for pre-first-release work.  Every version checked in here *should* be functional.  However, it is under development and may not be bug free.  Given that it only reads preferences and saves them to a file, the risks of running this should be quite low.  If you intend to try it, please look over the source code and try it with a [test profile](https://developer.mozilla.org/en-US/Firefox/Multiple_profiles) first.
+Every version checked in here *should* be functional and *should* be bug free.
 
 [Getting Started](https://github.com/Theemim/GeckoPrefsExporter-Temp/wiki)
 
