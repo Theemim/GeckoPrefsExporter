@@ -1,4 +1,4 @@
-### GeckoPrefsExporter-Temp
+### GeckoPrefsExporter
 
 GeckoPrefsExporter.js is a Javascript code snippet that exports [preferences](https://developer.mozilla.org/en-US/docs/Mozilla/Preferences) from Gecko-based applications such as Firefox, SeaMonkey, Thunderbird, TorBrowser, and others.  It can be run within those applications via their [Scratchpad](https://developer.mozilla.org/en-US/docs/Tools/Scratchpad).  Once prefs have been exported to a file, that file can be diffed against other export files, analyzed in other fashions, and/or kept for future reference.  When a new Gecko application build is released, I like to compare its export to an export from the previous version.  That helps to understand what is changing, and identify the prefs that may need to be reviewed if not modified.
 
