@@ -86,18 +86,18 @@ if(typeof(Components) !== "object") {
 }
 ["interfaces", "classes", "utils", "results"].forEach(function(p) {
   if(typeof(Components[p]) !== "object") {
-    fatalError("Components." + p + "is not an object.  Are you running in browser context?", false);
+    fatalError("Components." + p + " is not an object.  Are you running in browser context?", false);
   }
 });
-if(typeof(Services) !== "object") {
-  log("Services is not an object.  Importing...");
+if(typeof(Services) === "undefined") {
+  log("Services is undefined.  Importing...");
   Components.utils.import("resource://gre/modules/Services.jsm");
   if(typeof(Services) !== "object") {
     fatalError("Can't import resource://gre/modules/Services.jsm", false);
   }
 }
-if(typeof(FileUtils) !== "object") {
-  log("FileUtils is not an object.  Importing...");
+if(typeof(FileUtils) === "undefined") {
+  log("FileUtils is undefined.  Importing...");
   Components.utils.import("resource://gre/modules/FileUtils.jsm");
   if(typeof(FileUtils) !== "object") {
     fatalError("resource://gre/modules/FileUtils.jsm", true);
