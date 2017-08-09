@@ -80,22 +80,24 @@ var stats = {
 var statsTableWidth = 27;
 
 log(gpe.desc + " Started");
-// Module checks for different environments
-if(typeof(Components) === "undefined") {
-  fatalError("Components is undefined.  Are you running in browser context?", false);
+// Some explicit checking first
+if(typeof(Components) !== "object") {
+  fatalError("Components is not an object.  Are you running in browser context?", false);
 }
-if(typeof(Components.utils) === "undefined") {
-  fatalError("Components.utils is undefined.  Are you running in browser context?", false);
-}
-if(typeof(Services) === "undefined") {
-  log("Services is undefined.  Importing...");
+["interfaces", "classes", "utils", "results"].forEach(function(p) {
+  if(typeof(Components[p]) !== "object") {
+    fatalError("Components." + p + "is not an object.  Are you running in browser context?", false);
+  }
+});
+if(typeof(Services) !== "object") {
+  log("Services is not an object.  Importing...");
   Components.utils.import("resource://gre/modules/Services.jsm");
   if(typeof(Services) === "undefined") {
     fatalError("Can't import resource://gre/modules/Services.jsm", false);
   }
 }
-if(typeof(FileUtils) === "undefined") {
-  log("FileUtils is undefined.  Importing...");
+if(typeof(FileUtils) !== "object") {
+  log("FileUtils is not an object.  Importing...");
   Components.utils.import("resource://gre/modules/FileUtils.jsm");
   if(typeof(FileUtils) === "undefined") {
     fatalError("resource://gre/modules/FileUtils.jsm", true);
@@ -414,6 +416,10 @@ function getOutput(prefs, stats, options) {
   var header = "";
   if(options.exportFormat === "json") {
     output = JSON.stringify(prefs);
+    // Not strictly necessary, but why not verify this before export
+    if(!jsonOutputParseMatchesPrefs(output, prefs)) {
+      fatalError("JSON.parse of output won't match prefs", true);
+    }
   }
   else if((options.exportFormat === "txt") || (options.exportFormat === "csv")){
     var separator = (options.exportFormat === "txt") ? options.txt.separator : ",";
@@ -466,7 +472,7 @@ function getOutput(prefs, stats, options) {
       }
       if(options.exportFormat === "csv") {
         fields.forEach(function(f, i) {
-          fields[i] = csvEscape(f);
+          fields[i] = csvEscape(f.toString());
         });
       }
       output += fields.join(separator) + options.txtAndCsv.endOfLine;
@@ -483,6 +489,36 @@ function getOutput(prefs, stats, options) {
     output += "\n";
   }
   return(output);
+}
+
+function jsonOutputParseMatchesPrefs(jsonStringifiedPrefs, prefs) {
+  var result = false;
+  var msgPref = "JSON.parse check failed: ";
+  var cmpPrefs = JSON.parse(jsonStringifiedPrefs);
+  if(prefs.length !== cmpPrefs.length) {
+    log(msgPref + "prefs.length != cmpPrefs.length");
+  }
+  else {
+    result = prefs.every(function(pref, index) {
+      var cmpPref = cmpPrefs[index];
+      var prefKeys = Object.keys(pref);
+      var cmpPrefKeys = Object.keys(cmpPref);
+      if(prefKeys.length !== cmpPrefKeys.length) {
+        log(msgPref + "keys different for " + pref.name);
+        return(false);
+      }
+      else {
+        return(prefKeys.every(function(key) {
+          if(pref[key] !== cmpPref[key]) {
+            log(msgPref + "pref mismatch for " + [pref.name, key, pref[key], cmpPref[key]].join(", "));
+            return(false);
+          }
+          return(true);
+        }));
+      }
+    });
+  }
+  return(result);
 }
 
 function escapeVerticalChars(s) {
@@ -603,4 +639,3 @@ function log(msg) {
   }
 }
 
-// The End.  If you want to add filtering code you could do it below.
