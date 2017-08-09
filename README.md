@@ -1,8 +1,13 @@
 ### GeckoPrefsExporter
 
-GeckoPrefsExporter.js is a Javascript code snippet that exports [preferences](https://developer.mozilla.org/en-US/docs/Mozilla/Preferences) (what you see in about:config) from Gecko-based applications such as Firefox, SeaMonkey, Thunderbird, Palemoon, and others.  It can be run within those applications via their [Scratchpad](https://developer.mozilla.org/en-US/docs/Tools/Scratchpad).  Once prefs have been exported to a file, that file can be diffed against other export files, analyzed in other fashions, and kept for future reference.  For example, I like to compare an export from a new version to an export from the previous version.  That helps me to understand what is changing and which prefs will need to be modified.
+GeckoPrefsExporter.js is a Javascript code snippet that exports [preferences](https://developer.mozilla.org/en-US/docs/Mozilla/Preferences) (what you see in about:config) from Gecko-based applications such as Firefox, SeaMonkey, Thunderbird, Palemoon, and others.  It can be run within these applications via their [Scratchpad](https://developer.mozilla.org/en-US/docs/Tools/Scratchpad).  You may find this useful when:
 
-There are three output formats: "txt", "csv", and "json".  This is a few lines from a "txt" output that shows what is collected for each pref:
+* The about:config Search feature doesn't suffice
+* You want to see default values that about:config doesn't display
+* You want all pref data in a file so that you can diff it against another export file, perform other analysis, and/or keep it for future reference.  I like to compare an export from a new version to an export from the previous version.  That helps me to understand what is changing and which prefs need to be studied if not modified.
+* You want to work with snapshots from a live system
+
+There are three output formats: "txt", "csv", and "json".  This is a few lines from a "txt" output that shows what can be collected for each pref:
 
 ```
 <PREFNAME> • <STATUS> • <TYPE> • <VALUE> • <DEFAULTVALUE>
