@@ -92,14 +92,14 @@ if(typeof(Components) !== "object") {
 if(typeof(Services) !== "object") {
   log("Services is not an object.  Importing...");
   Components.utils.import("resource://gre/modules/Services.jsm");
-  if(typeof(Services) === "undefined") {
+  if(typeof(Services) !== "object") {
     fatalError("Can't import resource://gre/modules/Services.jsm", false);
   }
 }
 if(typeof(FileUtils) !== "object") {
   log("FileUtils is not an object.  Importing...");
   Components.utils.import("resource://gre/modules/FileUtils.jsm");
-  if(typeof(FileUtils) === "undefined") {
+  if(typeof(FileUtils) !== "object") {
     fatalError("resource://gre/modules/FileUtils.jsm", true);
   }
 }
