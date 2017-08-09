@@ -4,7 +4,7 @@ GeckoPrefsExporter.js is a Javascript code snippet that exports [preferences](ht
 
 * The about:config Search feature doesn't suffice
 * You want to see default values that about:config doesn't display
-* You want all pref data in a file so that you can diff it against another export file, perform other analysis, and/or keep it for future reference.  I like to compare an export from a new version to an export from the previous version.  That helps me to understand what is changing and which prefs need to be studied if not modified.
+* You want pref data in a file so that you can diff it against another file, perform other analysis, or keep it for future reference.  I like to compare an export from a new version to an export from the previous version.  That helps me to understand what is changing and which prefs need to be studied if not modified.
 * You want to work with snapshots from a live system
 
 There are three output formats: "txt", "csv", and "json".  This is a few lines from a "txt" output that shows what can be collected for each pref:
