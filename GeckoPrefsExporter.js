@@ -683,8 +683,3 @@ function log(msg) {
     console.log(gpe.prefix + msg);
   }
 }
-
-
-/*
-Exception: [GPE] Components.classes is not an object.  Are you running in browser context?
-*/
