@@ -531,22 +531,20 @@ function csvEscape(str) {
 }
 
 function getAppSpecificFilename(filename) {
-  var appNameStr = "";
-  var appVerStr = "";
+  var fnFields = [];
   var prefBranch = Services.prefs.getBranch("");
   if(prefBranch.getPrefType("torbrowser.version") === prefBranch.PREF_STRING) {
-    appNameStr = "TorBrowser";
-    appVerStr = prefBranch.getCharPref("torbrowser.version", "");
+    fnFields.push("TorBrowser");
+    fnFields.push(prefBranch.getCharPref("torbrowser.version", ""));
   }
   else {
     var appInfo = Components.classes["@mozilla.org/xre/app-info;1"].getService(Components.interfaces.nsIXULAppInfo);
-    appNameStr = appInfo.name.replace(" ", "-");
-    appVerStr = appInfo.version;
+    fnFields.push(appInfo.name);
+    fnFields.push(appInfo.version);
   }
-  if(appVerStr != "") {
-    appVerStr += "-";
-  }
-  return(appNameStr + "-" + appVerStr + filename);
+  fnFields.push(prefBranch.getCharPref("app.update.channel", ""))
+  fnFields.push(filename);
+  return(fnFields.join("-").replace(/\s/g, "-"));
 }
 
 function pickOutputFile(title, defaultFilename, defaultExtension, addToRecentDocs) {
