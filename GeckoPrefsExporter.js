@@ -11,7 +11,7 @@
 
 // Adjust these options to suit your needs
 var options = {
-  exportFormat:          "txt",            // "txt", "csv", or "json"
+  exportFormat:          "txt",            // "txt", "csv", "json", "js"
   appSpecificFilename:   true,             // Prepend app name & version to basename?
   basename:              "ExportedPrefs",  // Base portion of filename
   addToRecentDocs:       false,            // A file picker option
@@ -21,20 +21,28 @@ var options = {
     separator:           " • ",            // Separator between fields
     appendStatsToOutput: false,            // If you want stats in output file
   },
-  txtAndCsv: {
+  txtCsv: {
     outputPrefName:      true,             // Include pref name?
     outputPrefStatus:    true,             // Include pref status?
     outputPrefType:      true,             // Include pref type?
     outputPrefValue:     true,             // Include pref value?
     outputPrefDefValue:  true,             // Include pref default value?
     escVerticalChars:    true,             // Escape newlines, vertical tab, form feed?
-    endOfLine:           "\r\n",           // Line terminator
     outputHeader:        true,             // Output header with field descriptions?
+  },
+  js: {
+    funcName:            "pref",           // Function name for pref calls
+    userSetOnly:         false,            // Include only userset prefs?
+    useDefValue:         true,             // Use default value instead of user value?
+  },
+  txtCsvJs: {
+    endOfLine:           "\r\n",           // Line terminator
   },
   prefExtracting: {
     prefRoot:            "",               // Can be adjusted to export sub-branches
     caseSensitiveSort:   true,             // Determines pref output order
     logNonAsciiChars:    false,            // Log non-ASCII prefs to console?
+    getLocalizedValues:  true,             // Localize user values when defValue indicates it?
     filter: {
       include:           undefined,        // Must match to be included.  Ex: /telemetry/
       exclude:           undefined,        // If matches will be excluded (overrides include)
@@ -63,10 +71,12 @@ var stats = {
   numBooleanPrefs     : 0,
   numIntegerPrefs     : 0,
   numStringPrefs      : 0,
-  numLocalizedPrefs   : 0,
+  numLocalizedPrefs   : 0,  // Affected by options.prefExtracting.getLocalizedValues
   numNonAsciiPrefs    : 0,
   numNonExtAsciiPrefs : 0,
-  numTypeErrors       : 0,
+  numHighCodePtPrefs  : 0,
+  numInvalidTypes     : 0,
+  numUnknownTypes     : 0,
   numUserValues       : 0,
   numDefValues        : 0,
   maxPrefNameLen      : 0,
@@ -107,7 +117,7 @@ if(typeof(FileUtils) === "undefined") {
 getPrefs(prefs, options.prefExtracting, stats);
 var fileSaveResultMsg = "File save disabled by options";
 if(options.performFileSave) {
-  var output = getOutput(prefs, stats, options);
+  var output = getOutput(prefs, stats, options, statsTableWidth);
   var outputFilename = options.basename;
   if((options.prefExtracting.filter.include) || (options.prefExtracting.filter.exclude)) {
     if(options.prefExtracting.filter.affectsFilename) {
@@ -121,9 +131,6 @@ if(options.performFileSave) {
   var file;
   if(typeof(window) !== "undefined") {
     // File picker can be used
-    Object.keys(stats).forEach(function(key) {
-      log(getTabledNameValueStr(key, stats[key], statsTableWidth));
-    });
     file = pickOutputFile("Save " + gpe.name + " Export File As", outputFilename, options.exportFormat, options.addToRecentDocs);
   }
   else {
@@ -147,6 +154,9 @@ if(options.performFileSave) {
     fileSaveResultMsg = "Export cancelled";
   }
 }
+Object.keys(stats).forEach(function(key) {
+  log(getNameValueRow(key, stats[key], statsTableWidth));
+});
 log(fileSaveResultMsg);
 if(options.showResultsDialog) {
   var text = fileSaveResultMsg + "\n\n";
@@ -173,7 +183,7 @@ function getPrefs(prefs, extractOptions, stats) {
     prefNames.sort(caseInsensitiveSort);
   }
 
-  // Verify assumption that pref names and types are the same on both User and Default branches
+  // Verify that pref names and types are the same on both User and Default branches
   if(prefNames.length !== defPrefNames.length) {
     fatalError("Pref count mismatch: " + [prefNames.length, defPrefNames.length].join(", "), true);
   }
@@ -193,8 +203,7 @@ function getPrefs(prefs, extractOptions, stats) {
   }
 
   // Compile pref information.  The representation should be consistent with that
-  // presented by about:config.  It should also include other information which may
-  // be of interest.
+  // presented by about:config, but include additional information where possible.
   // https://dxr.mozilla.org/mozilla-release/source/toolkit/components/viewconfig/content/config.js
   prefNames.forEach(function(prefName) {
     var pref = {
@@ -221,7 +230,8 @@ function getPrefs(prefs, extractOptions, stats) {
       pref.status = "default";
       stats.numDefaultPrefs++;
     }
-    switch(userBranch.getPrefType(pref.name)) {
+    var prefType = userBranch.getPrefType(pref.name);
+    switch(prefType) {
       case userBranch.PREF_BOOL:
         pref.type = "boolean";
         stats.numBooleanPrefs++;
@@ -256,13 +266,15 @@ function getPrefs(prefs, extractOptions, stats) {
         //       https://bugzilla.mozilla.org/show_bug.cgi?id=1345294
         pref.value = userBranch.getComplexValue(pref.name, Components.interfaces.nsISupportsString).data;
         stats.numUserValues++;
-        if((pref.status == "default") && (/^chrome:\/\/.+\/locale\/.+\.properties/.test(pref.value))) {
-          try {
-            pref.value = userBranch.getComplexValue(pref.name, Components.interfaces.nsIPrefLocalizedString).data;
-            stats.numLocalizedPrefs++;
-          }
-          catch(e) {
-            // Covered
+        if(extractOptions.getLocalizedValues) {
+          if((pref.status == "default") && (/^chrome:\/\/.+\/locale\/.+\.properties/.test(pref.value))) {
+            try {
+              pref.value = userBranch.getComplexValue(pref.name, Components.interfaces.nsIPrefLocalizedString).data;
+              stats.numLocalizedPrefs++;
+            }
+            catch(e) {
+              // Covered
+            }
           }
         }
         if(pref.value.length > stats.maxUserValueLen) {
@@ -270,18 +282,26 @@ function getPrefs(prefs, extractOptions, stats) {
         }
         var isNonAscii = false;
         var isNonExtAscii = false;
+        var isHighCodePt = false;
         for(var i=0; i<pref.value.length; i++) {
-          if(pref.value.charCodeAt(i) > 127) {
+          var codePoint = pref.value.codePointAt(i);
+          if(codePoint  > 127) {
             isNonAscii = true;
           }
-          if(pref.value.charCodeAt(i) > 255) {
+          if(codePoint > 255) {
             isNonExtAscii = true;
+          }
+          if(codePoint > 0xFFFF) {
+            isHighCodePt = true;
           }
         }
         if(isNonAscii) {
           stats.numNonAsciiPrefs++;
           if(isNonExtAscii) {
             stats.numNonExtAsciiPrefs++;
+            if(isHighCodePt) {
+              stats.numHighCodePtPrefs++;
+            }
           }
           if(extractOptions.logNonAsciiChars) {
             log("Non-Ascii: " + pref.name + " : " + pref.value);
@@ -299,16 +319,18 @@ function getPrefs(prefs, extractOptions, stats) {
         }
         break;
       case userBranch.PREF_INVALID:
+        log("Invalid pref type found for " + pref.name);
         pref.type = "<PREF_INVALID>";
         pref.value = "<PREF_INVALID>";
         pref.defValue = "<PREF_INVALID>";
-        stats.numTypeErrors++;
+        stats.numInvalidTypes++;
         break;
       default:
+        log("Unknown pref type (" + prefType + ") found for " + pref.name);
         pref.type = "<PREF_UNKNOWN>";
         pref.value = "<PREF_UNKNOWN>";
         pref.defValue = "<PREF_UNKNOWN>";
-        stats.numTypeErrors++;
+        stats.numUnknownTypes++;
         break;
     }
     if(prefShouldBeIncluded(pref, extractOptions.filter, stats)) {
@@ -366,7 +388,7 @@ function prefShouldBeIncluded(pref, filter, stats) {
   }
   if(filter.exclude) {
     if(included) {
-      if(filter.exclude instanceof RegExp){
+      if(filter.exclude instanceof RegExp) {
         if(filter.reMatchPrefName) {
           if(filter.exclude.test(pref.name)) {
             included = false;
@@ -411,9 +433,8 @@ function prefShouldBeIncluded(pref, filter, stats) {
   return(included);
 }
 
-function getOutput(prefs, stats, options) {
+function getOutput(prefs, stats, options, statsTableWidth) {
   var output = "";
-  var header = "";
   if(options.exportFormat === "json") {
     output = JSON.stringify(prefs);
     // Not strictly necessary, but why not verify this before export
@@ -421,23 +442,23 @@ function getOutput(prefs, stats, options) {
       fatalError("JSON.parse of output won't match prefs", true);
     }
   }
-  else if((options.exportFormat === "txt") || (options.exportFormat === "csv")){
+  else if((options.exportFormat === "txt") || (options.exportFormat === "csv")) {
     var separator = (options.exportFormat === "txt") ? options.txt.separator : ",";
-    if(options.txtAndCsv.outputHeader) {
+    if(options.txtCsv.outputHeader) {
       var fields = [];
-      if(options.txtAndCsv.outputPrefName) {
+      if(options.txtCsv.outputPrefName) {
         fields.push("<PREFNAME>");
       }
-      if(options.txtAndCsv.outputPrefStatus) {
+      if(options.txtCsv.outputPrefStatus) {
         fields.push("<STATUS>");
       }
-      if(options.txtAndCsv.outputPrefType) {
+      if(options.txtCsv.outputPrefType) {
         fields.push("<TYPE>");
       }
-      if(options.txtAndCsv.outputPrefValue) {
+      if(options.txtCsv.outputPrefValue) {
         fields.push("<VALUE>");
       }
-      if(options.txtAndCsv.outputPrefDefValue) {
+      if(options.txtCsv.outputPrefDefValue) {
         fields.push("<DEFAULTVALUE>");
       }
       if(options.exportFormat === "csv") {
@@ -445,27 +466,27 @@ function getOutput(prefs, stats, options) {
           fields[i] = csvEscape(f);
         });
       }
-      output += fields.join(separator) + options.txtAndCsv.endOfLine;
+      output += fields.join(separator) + options.txtCsvJs.endOfLine;
     }
     prefs.forEach(function(pref, index) {
       var fields = [];
-      if(options.txtAndCsv.outputPrefName) {
+      if(options.txtCsv.outputPrefName) {
         fields.push(pref.name);
       }
-      if(options.txtAndCsv.outputPrefStatus) {
+      if(options.txtCsv.outputPrefStatus) {
         fields.push(pref.status);
       }
-      if(options.txtAndCsv.outputPrefType) {
+      if(options.txtCsv.outputPrefType) {
         fields.push(pref.type);
       }
-      if(options.txtAndCsv.outputPrefValue) {
-        if((typeof(pref.value) === "string") && options.txtAndCsv.escVerticalChars) {
+      if(options.txtCsv.outputPrefValue) {
+        if((typeof(pref.value) === "string") && options.txtCsv.escVerticalChars) {
           fields.push(escapeVerticalChars(pref.value));
         }
         else fields.push(pref.value);
       }
-      if(options.txtAndCsv.outputPrefDefValue) {
-        if((typeof(pref.defValue) === "string") && options.txtAndCsv.escVerticalChars) {
+      if(options.txtCsv.outputPrefDefValue) {
+        if((typeof(pref.defValue) === "string") && options.txtCsv.escVerticalChars) {
           fields.push(escapeVerticalChars(pref.defValue));
         }
         else fields.push(pref.defValue);
@@ -475,20 +496,46 @@ function getOutput(prefs, stats, options) {
           fields[i] = csvEscape(f.toString());
         });
       }
-      output += fields.join(separator) + options.txtAndCsv.endOfLine;
+      output += fields.join(separator) + options.txtCsvJs.endOfLine;
+    });
+    if((options.exportFormat === "txt") && options.txt.appendStatsToOutput) {
+      output += "\n";
+      Object.keys(stats).forEach(function(key) {
+        output += getNameValueRow(key, stats[key], statsTableWidth) + "\n";
+      });
+      output += "\n";
+    }
+  }
+  else if(options.exportFormat === "js") {
+    output += "// These are function call format to making diffing easier." + options.txtCsvJs.endOfLine;
+    output += "// Do not execute this or copy it into a file which is executed." + options.txtCsvJs.endOfLine;
+    prefs.forEach(function(pref, index) {
+      if(!options.js.userSetOnly || (options.js.userSetOnly && (pref.status === "userset"))) {
+        var value = options.js.useDefValue ? pref.defValue : pref.value;
+        output += options.js.funcName + '("' + pref.name + '", ';
+        if(typeof(value) === "string") {
+          if(pref.name === "network.IDN.blacklist_chars") {
+            value = unicodeEscape(value);
+          }
+          output += '"' + value.replace(/\"/g, "\\\"").replace(/\n/g, "\\n") + '");' + options.txtCsvJs.endOfLine;
+        }
+        else output += value + ');' + options.txtCsvJs.endOfLine;
+      }
     });
   }
   else {
     fatalError("Invalid exportFormat", true);
   }
-  if((options.exportFormat === "txt") && options.txt.appendStatsToOutput) {
-    output += "\n";
-    Object.keys(stats).forEach(function(key) {
-      output += getTabledNameValueStr(key, stats[key], statsTableWidth) + "\n";
-    });
-    output += "\n";
-  }
   return(output);
+}
+
+function unicodeEscape(str) {
+  // Assumes code point <= 0xffff
+  var result = "";
+  for(var i=0; i<str.length; i++){
+    result += "\\u" + ("000" + str[i].charCodeAt(0).toString(16).toUpperCase()).substr(-4);
+  }
+  return(result);
 }
 
 function jsonOutputParseMatchesPrefs(jsonStringifiedPrefs, prefs) {
@@ -527,24 +574,24 @@ function escapeVerticalChars(s) {
 }
 
 function csvEscape(str) {
-  return('"' + str.replace(/\\/g, "\\\\").replace(/\"/g, "\"").replace(/,/g, "\\,") + '"');
+  return('"' + str.replace(/\\/g, "\\\\").replace(/\"/g, "\\\"").replace(/,/g, "\\,") + '"');
 }
 
 function getAppSpecificFilename(filename) {
-  var fnFields = [];
+  var prefixFields = [];
   var prefBranch = Services.prefs.getBranch("");
   if(prefBranch.getPrefType("torbrowser.version") === prefBranch.PREF_STRING) {
-    fnFields.push("TorBrowser");
-    fnFields.push(prefBranch.getCharPref("torbrowser.version", ""));
+    prefixFields.push("TorBrowser");
+    prefixFields.push(prefBranch.getCharPref("torbrowser.version", ""));
   }
   else {
     var appInfo = Components.classes["@mozilla.org/xre/app-info;1"].getService(Components.interfaces.nsIXULAppInfo);
-    fnFields.push(appInfo.name);
-    fnFields.push(appInfo.version);
+    prefixFields.push(appInfo.name);
+    prefixFields.push(appInfo.version);
   }
-  fnFields.push(prefBranch.getCharPref("app.update.channel", ""))
-  fnFields.push(filename);
-  return(fnFields.join("-").replace(/\s/g, "-"));
+  prefixFields.push(prefBranch.getCharPref("app.update.channel", ""))
+  var joiner = (filename.charAt(0) === '.') ? "" : "-";
+  return(prefixFields.join("-").replace(/\s/g, "-") + joiner + filename);
 }
 
 function pickOutputFile(title, defaultFilename, defaultExtension, addToRecentDocs) {
@@ -575,7 +622,7 @@ function pickOutputFile(title, defaultFilename, defaultExtension, addToRecentDoc
 }
 
 function writeFile(file, data) {
-  // ToDo: Switch to OS.File?
+  // ToDo: OS.File?
   var result = false;
   try {
     var foStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
@@ -603,20 +650,20 @@ function writeFile(file, data) {
   return(result);
 }
 
-function getTabledNameValueStr(nameStr, value, tableWidth) {
+function getNameValueRow(name, value, tableWidth) {
   var valueStr = value.toString();
   var pad = " ";
-  var numPads = Math.max(2, tableWidth-valueStr.length-nameStr.length-1);
-  return(nameStr + ":" + pad.repeat(numPads) + valueStr);
+  var numPads = Math.max(2, tableWidth-valueStr.length-name.length-1);
+  return(name + ":" + pad.repeat(numPads) + valueStr);
 }
 
 function caseInsensitiveSort(a, b) {
   a = a.toLowerCase();
   b = b.toLowerCase();
   if( a == b) {
-    return 0;
+    return(0);
   }
-  return a < b ? -1 : 1;
+  return(a < b ? -1 : 1);
 }
 
 function fatalError(msg, canAlert) {
@@ -637,3 +684,7 @@ function log(msg) {
   }
 }
 
+
+/*
+Exception: [GPE] Components.classes is not an object.  Are you running in browser context?
+*/
