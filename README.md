@@ -44,7 +44,7 @@ There is an include/exclude filter to control which prefs will be exported.  The
 [GPE] numPrefsForExport:     3172
 ```
 
-Every version checked in here should be functional.  If you run into any problems please let me know.
+I'm not worrying about releases or versioning at this point.  Every version checked in here should be functional and you should use the latest.  If you run into any problems please let me know.
 
 [Wiki](https://github.com/Theemim/GeckoPrefsExporter/wiki)
 
