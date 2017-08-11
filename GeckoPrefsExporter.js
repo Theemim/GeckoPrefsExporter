@@ -507,8 +507,13 @@ function getOutput(prefs, stats, options, statsTableWidth) {
     }
   }
   else if(options.exportFormat === "js") {
-    output += "// These are function call format to making diffing easier." + options.txtCsvJs.endOfLine;
-    output += "// Do not execute this or copy it into a file which is executed." + options.txtCsvJs.endOfLine;
+    ["// WARNING: These lines are in function call format just to making",
+     "// comparisons easier.  Some of the function calls that can appear",
+     "// here will not be safe to execute in a Gecko application via",
+     "// prefs.js, user.js, or the like.  Be careful how you use this."
+    ].forEach(function(line) {
+      output += line + options.txtCsvJs.endOfLine;
+    });
     prefs.forEach(function(pref, index) {
       if(!options.js.userSetOnly || (options.js.userSetOnly && (pref.status === "userset"))) {
         var value = options.js.useDefValue ? pref.defValue : pref.value;
