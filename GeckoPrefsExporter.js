@@ -34,6 +34,7 @@ var options = {
     funcName:            "pref",           // Function name for pref calls
     userSetOnly:         false,            // Include only userset prefs?
     useDefValue:         true,             // Use default value instead of user value?
+    includeWarning:      true,             // Warning about function call use?
   },
   txtCsvJs: {
     endOfLine:           "\r\n",           // Line terminator
@@ -507,13 +508,15 @@ function getOutput(prefs, stats, options, statsTableWidth) {
     }
   }
   else if(options.exportFormat === "js") {
-    ["// WARNING: These lines are in function call format just to making",
-     "// comparisons easier.  Some of the function calls that can appear",
-     "// here will not be safe to execute in a Gecko application via",
-     "// prefs.js, user.js, or the like.  Be careful how you use this."
-    ].forEach(function(line) {
-      output += line + options.txtCsvJs.endOfLine;
-    });
+    if(options.js.includeWarning) {
+      ["// WARNING: These lines are in function call format just to making",
+       "// comparisons easier.  Some of the function calls that can appear",
+       "// here will not be safe to execute in a Gecko application via",
+       "// prefs.js, user.js, or the like.  Be careful how you use this."
+      ].forEach(function(line) {
+        output += line + options.txtCsvJs.endOfLine;
+      });
+    }
     prefs.forEach(function(pref, index) {
       if(!options.js.userSetOnly || (options.js.userSetOnly && (pref.status === "userset"))) {
         var value = options.js.useDefValue ? pref.defValue : pref.value;
