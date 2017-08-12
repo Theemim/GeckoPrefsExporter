@@ -1,4 +1,4 @@
-// GeckoPrefsExporter: Exports pref data from Gecko apps
+// GeckoPrefsExporter: Exports pref data from Gecko based apps
 //
 // This has to run in app/browser context in order to read prefs.  You may
 // have to "Enable browser chrome and add-on debugging toolboxes" in the
