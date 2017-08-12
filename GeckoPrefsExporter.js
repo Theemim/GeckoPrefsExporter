@@ -1,15 +1,16 @@
-// GeckoPrefsExporter: Exports pref data from Gecko apps using nsIPrefService
+// GeckoPrefsExporter: Exports pref data from Gecko apps
 //
 // This has to run in app/browser context in order to read prefs.  You may
 // have to "Enable browser chrome and add-on debugging toolboxes" in the
 // Developer Toolbox Options, and in Scratchpad select Browser in the
 // Environment menu.  When you are finished running this you can change
 // those settings back to what they were.
-//
 
 "use strict";
 
-// Adjust these options to suit your needs
+// Default options will suffice for most uses, but I've added many
+// controls so that the output can be tailored to what you are
+// looking for and/or comparing against.
 var options = {
   exportFormat:          "txt",            // "txt", "csv", "json", "js"
   appSpecificFilename:   true,             // Prepend app name & version to basename?
@@ -27,12 +28,10 @@ var options = {
     outputPrefType:      true,             // Include pref type?
     outputPrefValue:     true,             // Include pref value?
     outputPrefDefValue:  true,             // Include pref default value?
-    escVerticalChars:    true,             // Escape newlines, vertical tab, form feed?
     outputHeader:        true,             // Output header with field descriptions?
   },
   js: {
     funcName:            "pref",           // Function name for pref calls
-    userSetOnly:         false,            // Include only userset prefs?
     useDefValue:         true,             // Use default value instead of user value?
     includeWarning:      true,             // Warning about function call use?
   },
@@ -43,7 +42,11 @@ var options = {
     prefRoot:            "",               // Can be adjusted to export sub-branches
     caseSensitiveSort:   true,             // Determines pref output order
     logNonAsciiChars:    false,            // Log non-ASCII prefs to console?
-    getLocalizedValues:  true,             // Localize user values when defValue indicates it?
+    incIfStatusIs: {
+      userset:           true,             // Include prefs with userset status?
+      default:           true,             // Include prefs with default status?
+      locked:            true,             // Include prefs with locked status?
+    },
     filter: {
       include:           undefined,        // Must match to be included.  Ex: /telemetry/
       exclude:           undefined,        // If matches will be excluded (overrides include)
@@ -64,7 +67,7 @@ var gpe = {
 };
 var prefs = [];
 var stats = {
-  // Before filtering
+  // Before conditional includes
   numPrefs            : 0,
   numUsersetPrefs     : 0,
   numDefaultPrefs     : 0,
@@ -72,7 +75,7 @@ var stats = {
   numBooleanPrefs     : 0,
   numIntegerPrefs     : 0,
   numStringPrefs      : 0,
-  numLocalizedPrefs   : 0,  // Affected by options.prefExtracting.getLocalizedValues
+  numLocalizedPrefs   : 0,
   numNonAsciiPrefs    : 0,
   numNonExtAsciiPrefs : 0,
   numHighCodePtPrefs  : 0,
@@ -83,7 +86,7 @@ var stats = {
   maxPrefNameLen      : 0,
   maxUserValueLen     : 0,
   maxDefValueLen      : 0,
-  // After filtering
+  // After conditional includes
   incFilterMatches    : 0,
   excFilterMatches    : 0,
   numPrefsForExport   : 0,
@@ -267,16 +270,15 @@ function getPrefs(prefs, extractOptions, stats) {
         //       https://bugzilla.mozilla.org/show_bug.cgi?id=1345294
         pref.value = userBranch.getComplexValue(pref.name, Components.interfaces.nsISupportsString).data;
         stats.numUserValues++;
-        if(extractOptions.getLocalizedValues) {
-          if((pref.status == "default") && (/^chrome:\/\/.+\/locale\/.+\.properties/.test(pref.value))) {
-            try {
-              pref.value = userBranch.getComplexValue(pref.name, Components.interfaces.nsIPrefLocalizedString).data;
-              stats.numLocalizedPrefs++;
-            }
-            catch(e) {
-              // Covered
-            }
+        if((pref.status == "default") && (/^chrome:\/\/.+\/locale\/.+\.properties/.test(pref.value))) {
+          try {
+            pref.value = userBranch.getComplexValue(pref.name, Components.interfaces.nsIPrefLocalizedString).data;
+            stats.numLocalizedPrefs++;
           }
+          catch(e) {
+            // Covered
+          }
+          stats.numLocalizedPrefs++;
         }
         if(pref.value.length > stats.maxUserValueLen) {
           stats.maxUserValueLen = pref.value.length;
@@ -334,14 +336,24 @@ function getPrefs(prefs, extractOptions, stats) {
         stats.numUnknownTypes++;
         break;
     }
-    if(prefShouldBeIncluded(pref, extractOptions.filter, stats)) {
+    // Conditional inclusion tests
+    var wantThisPref = true;
+    if(((pref.status === "userset") && !extractOptions.incIfStatusIs.userset) ||
+       ((pref.status === "default") && !extractOptions.incIfStatusIs.default) ||
+       ((pref.status === "locked") && !extractOptions.incIfStatusIs.locked)) {
+      wantThisPref = false;
+    }
+    else if(!prefPassesFilters(pref, extractOptions.filter, stats)) {
+      wantThisPref = false;
+    }
+    if(wantThisPref) {
       prefs.push(pref);
       stats.numPrefsForExport++;
     }
   });
 }
 
-function prefShouldBeIncluded(pref, filter, stats) {
+function prefPassesFilters(pref, filter, stats) {
   var included = true;
   if(filter.include) {
     included = false;
@@ -464,7 +476,7 @@ function getOutput(prefs, stats, options, statsTableWidth) {
       }
       if(options.exportFormat === "csv") {
         fields.forEach(function(f, i) {
-          fields[i] = csvEscape(f);
+          fields[i] = csvConvert(f);
         });
       }
       output += fields.join(separator) + options.txtCsvJs.endOfLine;
@@ -481,20 +493,20 @@ function getOutput(prefs, stats, options, statsTableWidth) {
         fields.push(pref.type);
       }
       if(options.txtCsv.outputPrefValue) {
-        if((typeof(pref.value) === "string") && options.txtCsv.escVerticalChars) {
-          fields.push(escapeVerticalChars(pref.value));
+        if(typeof(pref.value) === "string") {
+          fields.push(escMatchingChars(pref.value, /[\x00-\x1f\x7f\u2028\u2029]/g));
         }
         else fields.push(pref.value);
       }
       if(options.txtCsv.outputPrefDefValue) {
-        if((typeof(pref.defValue) === "string") && options.txtCsv.escVerticalChars) {
-          fields.push(escapeVerticalChars(pref.defValue));
+        if(typeof(pref.defValue) === "string") {
+          fields.push(escMatchingChars(pref.defValue, /[\x00-\x1f\x7f\u2028\u2029]/g));
         }
         else fields.push(pref.defValue);
       }
       if(options.exportFormat === "csv") {
         fields.forEach(function(f, i) {
-          fields[i] = csvEscape(f.toString());
+          fields[i] = csvConvert(f);
         });
       }
       output += fields.join(separator) + options.txtCsvJs.endOfLine;
@@ -518,17 +530,16 @@ function getOutput(prefs, stats, options, statsTableWidth) {
       });
     }
     prefs.forEach(function(pref, index) {
-      if(!options.js.userSetOnly || (options.js.userSetOnly && (pref.status === "userset"))) {
         var value = options.js.useDefValue ? pref.defValue : pref.value;
         output += options.js.funcName + '("' + pref.name + '", ';
         if(typeof(value) === "string") {
           if(pref.name === "network.IDN.blacklist_chars") {
-            value = unicodeEscape(value);
+            value = unicodeEscAllChars(value);
           }
-          output += '"' + value.replace(/\"/g, "\\\"").replace(/\n/g, "\\n") + '");' + options.txtCsvJs.endOfLine;
+          else value = escMatchingChars(value, /[\x00-\x1f\x7f\"\\\u2028\u2029]/g);
+          output += '"' + value + '");' + options.txtCsvJs.endOfLine;
         }
         else output += value + ');' + options.txtCsvJs.endOfLine;
-      }
     });
   }
   else {
@@ -537,7 +548,51 @@ function getOutput(prefs, stats, options, statsTableWidth) {
   return(output);
 }
 
-function unicodeEscape(str) {
+function escMatchingChars(str, regex) {
+  return str.replace(regex, function (character) {
+    var rep;
+    switch (character) {
+      case "\b":
+        rep = "\\b";
+        break;
+      case "\t":
+        rep = "\\t";
+        break;
+      case "\n":
+        rep = "\\n";
+        break;
+      case "\v":
+        rep = "\\v";
+        break;
+      case "\f":
+        rep = "\\f";
+        break;
+      case "\r":
+        rep = "\\r";
+        break;
+      case "\u2028":
+        rep = "\\u2028";
+        break;
+      case "\u2029":
+        rep = "\\u2029";
+        break;
+      default:
+        var cc = character.charCodeAt(0);
+        if((cc < 32) || (cc == 127)) {
+          rep = "\\u" + ("000" + cc.toString(16).toUpperCase()).substr(-4);
+        }
+        else rep = "\\" + character;
+        break;
+    }
+    return(rep);
+  });
+}
+
+function csvConvert(field) {
+  return('"' + field.toString().replace(/\,/g, "\\,") + '"');
+}
+
+function unicodeEscAllChars(str) {
   // Assumes code point <= 0xffff
   var result = "";
   for(var i=0; i<str.length; i++){
@@ -574,15 +629,6 @@ function jsonOutputParseMatchesPrefs(jsonStringifiedPrefs, prefs) {
     });
   }
   return(result);
-}
-
-function escapeVerticalChars(s) {
-  // These cause a value to span multiple lines.  Which may or may not be desired for diffing.
-  return(s.replace(/\r\n/g, "\\r\\n").replace(/\n/g, "\\n").replace(/\v/g, "\\v").replace(/\f/g, "\\f"));
-}
-
-function csvEscape(str) {
-  return('"' + str.replace(/\\/g, "\\\\").replace(/\"/g, "\\\"").replace(/,/g, "\\,") + '"');
 }
 
 function getAppSpecificFilename(filename) {
