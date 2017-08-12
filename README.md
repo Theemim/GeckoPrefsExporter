@@ -7,7 +7,7 @@ GeckoPrefsExporter.js is a Javascript snippet that exports preferences (what you
 * You want pref data in a file so that you can diff it against another file, perform other analysis, and/or keep it for future reference.  I like to compare an export from a new version to an export from the previous version.  That helps me to understand what is changing and which prefs need to be studied if not modified.
 * You want to work with snapshots from a live system
 
-GPE supports several output formats ("txt", "csv", "js", "json"), filtering, and other options which can optimize output for different tasks and work flows.  Here are a few lines from a default "txt" output:
+GPE supports several output formats (txt, csv, js, json), filtering, and other options which can optimize output for different tasks and work flows.  Here are a few lines from a default "txt" output:
 
 ```
 <PREFNAME> • <STATUS> • <TYPE> • <VALUE> • <DEFAULTVALUE>
