@@ -21,7 +21,7 @@ var options = {
   },
   txt: {
     separator:           " • ",           // Separator between fields
-    appendStatsToOutput: false,           // Append stats to output?
+    appendStatsToOutput: false,            // Append stats to output?
   },
   txtCsv: {
     outputPrefName:      true,            // Output pref name field?
@@ -59,8 +59,8 @@ var options = {
     },
   },
   filter: {
-    include:             undefined,       // Must match to be included.
-    exclude:             undefined,       // If matches will be excluded (priority)
+    include:             undefined,       // Include if matched
+    exclude:             undefined,       // Exclude if matched (priority)
     reMatchPrefName:     true,            // Apply RegExps to pref name
     reMatchPrefValue:    true,            // Apply RegExps to pref value
     debug:               false,           // In case of trouble with filtering
