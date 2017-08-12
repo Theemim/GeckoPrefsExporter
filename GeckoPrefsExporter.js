@@ -589,7 +589,7 @@ function escMatchingChars(str, regex) {
 }
 
 function csvConvert(field) {
-  return('"' + field.toString().replace(/\,/g, "\\,") + '"');
+  return('"' + field.toString().replace(/\"/g, '""').replace(/\,/g, "\\,") + '"');
 }
 
 function unicodeEscAllChars(str) {
