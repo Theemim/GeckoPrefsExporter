@@ -1,60 +1,69 @@
-// GeckoPrefsExporter: Exports pref data from Gecko based apps
+// GeckoPrefsExporter: Exports prefs from Gecko-based applications
 //
-// This has to run in app/browser context in order to read prefs.  You may
-// have to "Enable browser chrome and add-on debugging toolboxes" in the
-// Developer Toolbox Options, and in Scratchpad select Browser in the
-// Environment menu.  When you are finished running this you can change
-// those settings back to what they were.
+// This must run in app/browser context in order to read prefs.  You may have
+// to "Enable browser chrome and add-on debugging toolboxes" in the Developer
+// Toolbox Options, and in Scratchpad select Browser in the Environment menu.
+// You can change those settings back to what they were when you are done.
 
 "use strict";
 
-// Default options will suffice for most uses, but I've added many
-// controls so that the output can be tailored to what you are
-// looking for and/or comparing against.
+// The default options will suffice for basic use.  You can adjust these to
+// optimize the output for specific tasks and work flows.
 var options = {
-  exportFormat:          "txt",            // "txt", "csv", "json", "js"
-  appSpecificFilename:   true,             // Prepend app name & version to basename?
-  basename:              "ExportedPrefs",  // Base portion of filename
-  addToRecentDocs:       false,            // A file picker option
-  performFileSave:       true,             // In case you only want to see stats
-  showResultsDialog:     false,            // If you want a results dialog with stats
+  exportFormat:          "txt",           // "txt", "csv", "js", "json"
+  showResultsDialog:     false,           // Always show results dialog with stats?
+  performFileSave:       true,            // In case you only want to see stats
+  addToRecentDocs:       false,           // A file picker option
+  filename: {
+    base:                "ExportedPrefs", // Base portion of filename
+    reflectsApp:         true,            // Prepend app info to base?
+    reflectsFiltering:   true,            // Append -Filtered to base when filtering?
+  },
   txt: {
-    separator:           " • ",            // Separator between fields
-    appendStatsToOutput: false,            // If you want stats in output file
+    separator:           " • ",           // Separator between fields
+    appendStatsToOutput: true,            // Append stats to output?
   },
   txtCsv: {
-    outputPrefName:      true,             // Include pref name?
-    outputPrefStatus:    true,             // Include pref status?
-    outputPrefType:      true,             // Include pref type?
-    outputPrefValue:     true,             // Include pref value?
-    outputPrefDefValue:  true,             // Include pref default value?
-    outputHeader:        true,             // Output header with field descriptions?
+    outputPrefName:      true,            // Output pref name field?
+    outputPrefStatus:    true,            // Output pref status field?
+    outputPrefType:      true,            // Output pref type field?
+    outputPrefValue:     true,            // Output pref value field?
+    outputPrefDefValue:  true,            // Output pref default value field?
+    outputHeader:        true,            // Output header with field descriptions?
   },
   js: {
-    funcName:            "pref",           // Function name for pref calls
-    useDefValue:         true,             // Use default value instead of user value?
-    includeWarning:      true,             // Warning about function call use?
+    funcName:            "pref",          // Function name for pref calls
+    useDefValue:         true,            // Use default value instead of user value?
+    includeWarning:      true,            // Warning about function call use?
   },
   txtCsvJs: {
-    endOfLine:           "\r\n",           // Line terminator
+    endOfLine:           "\r\n",          // Line terminator
   },
-  prefExtracting: {
-    prefRoot:            "",               // Can be adjusted to export sub-branches
-    caseSensitiveSort:   true,             // Determines pref output order
-    logNonAsciiChars:    false,            // Log non-ASCII prefs to console?
-    incIfStatusIs: {
-      userset:           true,             // Include prefs with userset status?
-      default:           true,             // Include prefs with default status?
-      locked:            true,             // Include prefs with locked status?
+  misc: {
+    prefRoot:            "",              // Can be adjusted to export sub-branches
+    caseSensitiveSort:   true,            // Determines pref output order
+    logNonAsciiChars:    false,           // Log non-ASCII prefs to console?
+  },
+  prefilter: {
+    status: {
+      incUserset:        true,            // Include prefs with status userset?
+      incDefault:        true,            // Include prefs with status default?
+      incLocked:         true,            // Include prefs with status locked?
     },
-    filter: {
-      include:           undefined,        // Must match to be included.  Ex: /telemetry/
-      exclude:           undefined,        // If matches will be excluded (overrides include)
-      reMatchPrefName:   true,             // Apply RegExps to pref name
-      reMatchPrefValue:  true,             // Apply RegExps to pref value
-      debug:             false,            // In case of trouble with filtering
-      affectsFilename:   true,             // Append -Filtered to basename when filtering
+    type: {
+      incBoolean:        true,            // Include prefs with type boolean?
+      incInteger:        true,            // Include prefs with type integer?
+      incString:         true,            // Include prefs with type string?
+      incInvalid:        true,            // Include prefs with type invalid?
+      incUnknown:        true,            // Include prefs with type unknown?
     },
+  },
+  filter: {
+    include:             undefined,       // Must match to be included.
+    exclude:             undefined,       // If matches will be excluded (priority)
+    reMatchPrefName:     true,            // Apply RegExps to pref name
+    reMatchPrefValue:    true,            // Apply RegExps to pref value
+    debug:               false,           // In case of trouble with filtering
   },
 };
 
@@ -67,7 +76,7 @@ var gpe = {
 };
 var prefs = [];
 var stats = {
-  // Before conditional includes
+  // Before filtering
   numPrefs            : 0,
   numUsersetPrefs     : 0,
   numDefaultPrefs     : 0,
@@ -86,12 +95,26 @@ var stats = {
   maxPrefNameLen      : 0,
   maxUserValueLen     : 0,
   maxDefValueLen      : 0,
-  // After conditional includes
+  // After filtering
+  numIncByPrefilter   : 0,
+  numExcByPrefilter   : 0,
   incFilterMatches    : 0,
   excFilterMatches    : 0,
   numPrefsForExport   : 0,
 };
 var statsTableWidth = 27;
+var specialStr = {
+  // These can appear in output
+  prefNameHdr:     "<PREFNAME>",
+  prefStatusHdr:   "<STATUS>",
+  prefTypeHdr:     "<TYPE>",
+  prefValueHdr:    "<VALUE>",
+  prefDefValueHdr: "<DEFAULTVALUE>",
+  error:           "<ERROR>",
+  noDefValue:      "<NODEFAULTVALUE>",
+  typeInvalid:     "<TYPE_INVALID>",
+  typeUnknown:     "<TYPE_UNKNOWN>",
+};
 
 log(gpe.desc + " Started");
 // Some explicit checking first
@@ -118,24 +141,22 @@ if(typeof(FileUtils) === "undefined") {
   }
 }
 // The heart of it
-getPrefs(prefs, options.prefExtracting, stats);
+getPrefs(prefs, options, stats);
 var fileSaveResultMsg = "File save disabled by options";
 if(options.performFileSave) {
-  var output = getOutput(prefs, stats, options, statsTableWidth);
-  var outputFilename = options.basename;
-  if((options.prefExtracting.filter.include) || (options.prefExtracting.filter.exclude)) {
-    if(options.prefExtracting.filter.affectsFilename) {
-      outputFilename += "-Filtered";
-    }
+  var output = getOutput(prefs, stats, options);
+  if((options.exportFormat === "txt") && options.txt.appendStatsToOutput) {
+    output += "\n\n" + gpe.name + " stats:\n\n";
+    Object.keys(stats).forEach(function(key) {
+      output += getNameValueRow(key, stats[key], statsTableWidth) + "\n";
+    });
+    output += "\n";
   }
-  outputFilename += "." + options.exportFormat;
-  if(options.appSpecificFilename) {
-    outputFilename = getAppSpecificFilename(outputFilename);
-  }
+  var outputFilename = getFilename(options);
   var file;
   if(typeof(window) !== "undefined") {
     // File picker can be used
-    file = pickOutputFile("Save " + gpe.name + " Export File As", outputFilename, options.exportFormat, options.addToRecentDocs);
+    file = pickOutputFile("Save " + gpe.name + " Save File As", outputFilename, options.exportFormat, options.addToRecentDocs);
   }
   else {
     // File picker can't be used - ask to save file to the desktop
@@ -173,12 +194,12 @@ log("Finished");
 
 
 // Functions
-function getPrefs(prefs, extractOptions, stats) {
-  var defBranch = Services.prefs.getDefaultBranch(extractOptions.prefRoot);
+function getPrefs(prefs, options, stats) {
+  var defBranch = Services.prefs.getDefaultBranch(options.misc.prefRoot);
   var defPrefNames = defBranch.getChildList("");
-  var userBranch = Services.prefs.getBranch(extractOptions.prefRoot);
+  var userBranch = Services.prefs.getBranch(options.misc.prefRoot);
   var prefNames = userBranch.getChildList("");
-  if(extractOptions.caseSensitiveSort) {
+  if(options.misc.caseSensitiveSort) {
     defPrefNames.sort();
     prefNames.sort();
   }
@@ -186,7 +207,6 @@ function getPrefs(prefs, extractOptions, stats) {
     defPrefNames.sort(caseInsensitiveSort);
     prefNames.sort(caseInsensitiveSort);
   }
-
   // Verify that pref names and types are the same on both User and Default branches
   if(prefNames.length !== defPrefNames.length) {
     fatalError("Pref count mismatch: " + [prefNames.length, defPrefNames.length].join(", "), true);
@@ -199,23 +219,22 @@ function getPrefs(prefs, extractOptions, stats) {
     }
   });
   // Init stats where necessary
-  if(!extractOptions.filter.include) {
+  if(!options.filter.include) {
     stats.incFilterMatches = "N/A";
   }
-  if(!extractOptions.filter.exclude) {
+  if(!options.filter.exclude) {
     stats.excFilterMatches = "N/A";
   }
-
   // Compile pref information.  The representation should be consistent with that
   // presented by about:config, but include additional information where possible.
   // https://dxr.mozilla.org/mozilla-release/source/toolkit/components/viewconfig/content/config.js
   prefNames.forEach(function(prefName) {
     var pref = {
-      name:     "<ERROR>",
-      status:   "<ERROR>",
-      type:     "<ERROR>",
-      value:    "<ERROR>",
-      defValue: "<NODEFAULTVALUE>",
+      name:     specialStr.error,
+      status:   specialStr.error,
+      type:     specialStr.error,
+      value:    specialStr.error,
+      defValue: specialStr.error,
     };
     pref.name = prefName;
     if(pref.name.length > stats.maxPrefNameLen) {
@@ -246,7 +265,7 @@ function getPrefs(prefs, extractOptions, stats) {
           stats.numDefValues++;
         }
         catch(e) {
-          // Covered
+          pref.defValue = specialStr.noDefValue;
         }
         break;
       case userBranch.PREF_INT:
@@ -259,7 +278,7 @@ function getPrefs(prefs, extractOptions, stats) {
           stats.numDefValues++;
         }
         catch(e) {
-          // Covered
+          pref.defValue = specialStr.noDefValue;
         }
         break;
       case userBranch.PREF_STRING:
@@ -278,7 +297,6 @@ function getPrefs(prefs, extractOptions, stats) {
           catch(e) {
             // Covered
           }
-          stats.numLocalizedPrefs++;
         }
         if(pref.value.length > stats.maxUserValueLen) {
           stats.maxUserValueLen = pref.value.length;
@@ -306,7 +324,7 @@ function getPrefs(prefs, extractOptions, stats) {
               stats.numHighCodePtPrefs++;
             }
           }
-          if(extractOptions.logNonAsciiChars) {
+          if(options.misc.logNonAsciiChars) {
             log("Non-Ascii: " + pref.name + " : " + pref.value);
           }
         }
@@ -318,39 +336,51 @@ function getPrefs(prefs, extractOptions, stats) {
           }
         }
         catch(e) {
-          // Covered
+          pref.defValue = specialStr.noDefValue;
         }
         break;
       case userBranch.PREF_INVALID:
         log("Invalid pref type found for " + pref.name);
-        pref.type = "<PREF_INVALID>";
-        pref.value = "<PREF_INVALID>";
-        pref.defValue = "<PREF_INVALID>";
+        pref.type = specialStr.typeInvalid;
+        pref.value = specialStr.typeInvalid;
+        pref.defValue = specialStr.typeInvalid;
         stats.numInvalidTypes++;
         break;
       default:
         log("Unknown pref type (" + prefType + ") found for " + pref.name);
-        pref.type = "<PREF_UNKNOWN>";
-        pref.value = "<PREF_UNKNOWN>";
-        pref.defValue = "<PREF_UNKNOWN>";
+        pref.type = specialStr.typeUnknown,
+        pref.value = specialStr.typeUnknown,
+        pref.defValue = specialStr.typeUnknown,
         stats.numUnknownTypes++;
         break;
     }
-    // Conditional inclusion tests
-    var wantThisPref = true;
-    if(((pref.status === "userset") && !extractOptions.incIfStatusIs.userset) ||
-       ((pref.status === "default") && !extractOptions.incIfStatusIs.default) ||
-       ((pref.status === "locked") && !extractOptions.incIfStatusIs.locked)) {
-      wantThisPref = false;
-    }
-    else if(!prefPassesFilters(pref, extractOptions.filter, stats)) {
-      wantThisPref = false;
-    }
-    if(wantThisPref) {
-      prefs.push(pref);
-      stats.numPrefsForExport++;
+    // Filtering
+    if(prefPassesPrefilters(pref, options.prefilter, stats)) {
+      if(prefPassesFilters(pref, options.filter, stats)) {
+        prefs.push(pref);
+        stats.numPrefsForExport++;
+      }
     }
   });
+}
+
+function prefPassesPrefilters(pref, prefilter, stats) {
+  var included = true;
+  if(((pref.status === "userset") && !prefilter.status.incUserset) ||
+     ((pref.status === "default") && !prefilter.status.incDefault) ||
+     ((pref.status === "locked") && !prefilter.status.incLocked) ||
+     ((pref.type === "boolean") && !prefilter.type.incBoolean) ||
+     ((pref.type === "integer") && !prefilter.type.incInteger) ||
+     ((pref.type === "string") && !prefilter.type.incString) ||
+     ((pref.type === specialStr.typeInvalid) && !prefilter.type.invalid) ||
+     ((pref.type === specialStr.typeUnknown) && !prefilter.type.unknown)) {
+    included = false;
+    stats.numExcByPrefilter++;
+  }
+  else {
+    stats.numIncByPrefilter++;
+  }
+  return(included);
 }
 
 function prefPassesFilters(pref, filter, stats) {
@@ -446,7 +476,7 @@ function prefPassesFilters(pref, filter, stats) {
   return(included);
 }
 
-function getOutput(prefs, stats, options, statsTableWidth) {
+function getOutput(prefs, stats, options) {
   var output = "";
   if(options.exportFormat === "json") {
     output = JSON.stringify(prefs);
@@ -460,19 +490,19 @@ function getOutput(prefs, stats, options, statsTableWidth) {
     if(options.txtCsv.outputHeader) {
       var fields = [];
       if(options.txtCsv.outputPrefName) {
-        fields.push("<PREFNAME>");
+        fields.push(specialStr.prefNameHdr);
       }
       if(options.txtCsv.outputPrefStatus) {
-        fields.push("<STATUS>");
+        fields.push(specialStr.prefStatusHdr);
       }
       if(options.txtCsv.outputPrefType) {
-        fields.push("<TYPE>");
+        fields.push(specialStr.prefTypeHdr);
       }
       if(options.txtCsv.outputPrefValue) {
-        fields.push("<VALUE>");
+        fields.push(specialStr.prefValueHdr);
       }
       if(options.txtCsv.outputPrefDefValue) {
-        fields.push("<DEFAULTVALUE>");
+        fields.push(specialStr.prefDefValueHdr);
       }
       if(options.exportFormat === "csv") {
         fields.forEach(function(f, i) {
@@ -511,13 +541,6 @@ function getOutput(prefs, stats, options, statsTableWidth) {
       }
       output += fields.join(separator) + options.txtCsvJs.endOfLine;
     });
-    if((options.exportFormat === "txt") && options.txt.appendStatsToOutput) {
-      output += "\n";
-      Object.keys(stats).forEach(function(key) {
-        output += getNameValueRow(key, stats[key], statsTableWidth) + "\n";
-      });
-      output += "\n";
-    }
   }
   else if(options.exportFormat === "js") {
     if(options.js.includeWarning) {
@@ -631,21 +654,46 @@ function jsonOutputParseMatchesPrefs(jsonStringifiedPrefs, prefs) {
   return(result);
 }
 
-function getAppSpecificFilename(filename) {
-  var prefixFields = [];
-  var prefBranch = Services.prefs.getBranch("");
-  if(prefBranch.getPrefType("torbrowser.version") === prefBranch.PREF_STRING) {
-    prefixFields.push("TorBrowser");
-    prefixFields.push(prefBranch.getCharPref("torbrowser.version", ""));
+function getFilename(options) {
+  var filename = options.filename.base;
+  if(options.filename.reflectsApp) {
+    var prefixFields = [];
+    var prefBranch = Services.prefs.getBranch("");
+    if(prefBranch.getPrefType("torbrowser.version") === prefBranch.PREF_STRING) {
+      prefixFields.push("TorBrowser");
+      prefixFields.push(prefBranch.getCharPref("torbrowser.version", ""));
+    }
+    else {
+      var appInfo = Components.classes["@mozilla.org/xre/app-info;1"].getService(Components.interfaces.nsIXULAppInfo);
+      prefixFields.push(appInfo.name);
+      prefixFields.push(appInfo.version);
+    }
+    prefixFields.push(prefBranch.getCharPref("app.update.channel", ""))
+    var joiner = (filename.charAt(0) === '.') ? "" : "-";
+    filename = prefixFields.join("-").replace(/\s/g, "-") + joiner + filename;
   }
-  else {
-    var appInfo = Components.classes["@mozilla.org/xre/app-info;1"].getService(Components.interfaces.nsIXULAppInfo);
-    prefixFields.push(appInfo.name);
-    prefixFields.push(appInfo.version);
+  if(options.filename.reflectsFiltering) {
+    var filtering = false;
+    Object.keys(options.prefilter.status).forEach(function(key) {
+      if(options.prefilter.status[key] !== true) {
+        filtering = true;
+      }
+    });
+    Object.keys(options.prefilter.type).forEach(function(key) {
+      if(options.prefilter.type[key] !== true) {
+        filtering = true;
+      }
+    });
+    log(typeof(options.filter.include) !== "undefined");
+    if(options.filter.reMatchPrefName || options.filter.reMatchPrefValue) {
+      filtering |= (typeof(options.filter.include) !== "undefined");
+      filtering |= (typeof(options.filter.exclude) !== "undefined");
+    }
+    if(filtering) {
+      filename += "-Filtered";
+    }
   }
-  prefixFields.push(prefBranch.getCharPref("app.update.channel", ""))
-  var joiner = (filename.charAt(0) === '.') ? "" : "-";
-  return(prefixFields.join("-").replace(/\s/g, "-") + joiner + filename);
+  return(filename + "." + options.exportFormat);
 }
 
 function pickOutputFile(title, defaultFilename, defaultExtension, addToRecentDocs) {
