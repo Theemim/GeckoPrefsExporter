@@ -7,7 +7,7 @@ GeckoPrefsExporter.js is a Javascript snippet that exports preferences (applicat
 * You want pref data in a file so that you can diff it against another file, perform other analysis, and/or keep it for future reference.  For example, comparing the prefs in a new release to the prefs in the previous release.
 * You want to compare snapshots from a live system.  For example, comparing prefs before and after an update or other operation that may create new prefs and/or change existing ones.
 
-GPE supports several output formats (txt, csv, js, json), filtering, and other options which can optimize output for different tasks and work flows.  Here are a few lines from a "txt" export:
+GPE provides several export formats (txt, csv, js, json), filtering, and other options which can optimize output for different tasks and work flows.  Here are a few lines from a "txt" export:
 
 ```
 <PREFNAME> • <STATUS> • <TYPE> • <VALUE> • <DEFAULTVALUE>
@@ -20,7 +20,6 @@ browser.fixup.domainwhitelist.localhost • default • boolean • true • tru
 browser.fixup.hide_user_pass • default • boolean • true • true
 ```
 It also outputs stats which may be of interest:
-
 ```
 numPrefs:              3068
 numUsersetPrefs:         96
