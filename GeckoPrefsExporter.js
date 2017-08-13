@@ -116,6 +116,8 @@ var specialStr = {
   typeUnknown:     "<TYPE_UNKNOWN>",
 };
 
+// ToDo: Structure
+// ToDo: Line lengths
 log(gpe.desc + " Started");
 // Some explicit checking first
 if(typeof(Components) !== "object") {
@@ -154,12 +156,13 @@ if(options.performFileSave) {
   }
   var outputFilename = getFilename(options);
   var file;
+  // ToDo: Recheck after fp.open change
   if(typeof(window) !== "undefined") {
     // File picker can be used
     file = pickOutputFile("Save " + gpe.name + " Save File As", outputFilename, options.exportFormat, options.addToRecentDocs);
   }
   else {
-    // File picker can't be used - ask to save file to the desktop
+    // ToDo: Autoconfig environment worth supporting?
     file = Services.dirsvc.get("Desk", Components.interfaces.nsILocalFile);
     file.append(outputFilename);
     var text = "\nSave to " + file.path + "?\n\n";
@@ -301,6 +304,7 @@ function getPrefs(prefs, options, stats) {
         if(pref.value.length > stats.maxUserValueLen) {
           stats.maxUserValueLen = pref.value.length;
         }
+        // ToDo: Keep?
         var isNonAscii = false;
         var isNonExtAscii = false;
         var isHighCodePt = false;
@@ -419,6 +423,7 @@ function prefPassesFilters(pref, filter, stats) {
       }
     }
     else if(typeof(filter.include) === "function") {
+      // Function which returns true to include
       if(filter.include(pref)) {
         included = true;
         stats.incFilterMatches++;
@@ -462,6 +467,7 @@ function prefPassesFilters(pref, filter, stats) {
         }
       }
       else if(typeof(filter.exclude) === "function") {
+        // Function which returns true to exclude
         if(filter.exclude(pref)) {
           included = false;
           stats.excFilterMatches++;
@@ -693,6 +699,7 @@ function getFilename(options) {
       filename += "-Filtered";
     }
   }
+  // ToDo: Timestamp option?
   return(filename + "." + options.exportFormat);
 }
 
@@ -703,9 +710,6 @@ function pickOutputFile(title, defaultFilename, defaultExtension, addToRecentDoc
   fp.defaultString = defaultFilename;
   fp.defaultExtension = defaultExtension;
   switch(defaultExtension) {
-    case "json":
-      fp.appendFilter("JSON Files", "*.json");
-      break;
     case "txt":
     case "text":
       fp.appendFilters(fp.filterText);
@@ -713,10 +717,17 @@ function pickOutputFile(title, defaultFilename, defaultExtension, addToRecentDoc
     case "csv":
       fp.appendFilter("CSV Files", "*.csv");
       break;
+    case "json":
+      fp.appendFilter("JSON Files", "*.json");
+      break;
+    case "js":
+      fp.appendFilter("JavaScript Files", "*.js");
+      break;
     default:
       break;
   }
   fp.appendFilters(fp.filterAll);
+  // ToDo: fp.open
   if(fp.show() != fp.returnCancel) {
     return(fp.file);
   }
@@ -724,7 +735,7 @@ function pickOutputFile(title, defaultFilename, defaultExtension, addToRecentDoc
 }
 
 function writeFile(file, data) {
-  // ToDo: OS.File?
+  // ToDo: OS.File
   var result = false;
   try {
     var foStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
