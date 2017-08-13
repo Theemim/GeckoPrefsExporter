@@ -21,7 +21,7 @@ var options = {
   },
   txt: {
     separator:           " • ",           // Separator between fields
-    appendStatsToOutput: false,            // Append stats to output?
+    appendStatsToOutput: false,           // Append stats to output?
   },
   txtCsv: {
     outputPrefName:      true,            // Output pref name field?
