@@ -32,8 +32,8 @@ var options = {
     outputHeader:        true,            // Output header with field descriptions?
   },
   js: {
-    funcName:            "pref",          // Function name for pref calls
-    useDefValue:         true,            // Use default value instead of user value?
+    funcName:            "user_pref",     // Function name for pref calls
+    useDefValue:         false,           // Use default value instead of user value?
     includeWarning:      true,            // Warning about function call use?
   },
   txtCsvJs: {
