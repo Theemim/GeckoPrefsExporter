@@ -1,6 +1,6 @@
 ### GeckoPrefsExporter
 
-GeckoPrefsExporter.js is a Javascript snippet that exports preferences (application settings) from Gecko-based programs such as Firefox, SeaMonkey, Thunderbird, Palemoon, and others.  It can be executed in these applications via their [Scratchpad](https://developer.mozilla.org/en-US/docs/Tools/Scratchpad).  You may find this useful when:
+GeckoPrefsExporter.js is a Javascript snippet that exports preferences (application settings) from Gecko-based programs such as Firefox, SeaMonkey, Thunderbird, Pale Moon, and others.  It can be executed in these applications via their [Scratchpad](https://developer.mozilla.org/en-US/docs/Tools/Scratchpad).  You may find this useful when:
 
 * The about:config interface doesn't suffice
 * You want to see both the user values and default values for prefs
