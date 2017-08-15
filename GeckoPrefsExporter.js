@@ -241,8 +241,7 @@ function getPrefs(prefs, options, stats) {
       defValue: specialStr.error,
     };
     pref.name = prefName;
-    // ToDo: Relable "user set" to "modified"
-    //       https://bugzilla.mozilla.org/show_bug.cgi?id=1345055
+    // ToDo: Relabel "user set" to "modified" https://bugzilla.mozilla.org/show_bug.cgi?id=1345055
     if(pref.name.length > stats.maxPrefNameLen) {
       stats.maxPrefNameLen = pref.name.length;
     }
