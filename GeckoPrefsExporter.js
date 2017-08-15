@@ -198,6 +198,7 @@ log("Finished");
 
 // Functions
 function getPrefs(prefs, options, stats) {
+  // ToDo: Revisit use of both branches
   var defBranch = Services.prefs.getDefaultBranch(options.misc.prefRoot);
   var defPrefNames = defBranch.getChildList("");
   var userBranch = Services.prefs.getBranch(options.misc.prefRoot);
@@ -240,6 +241,8 @@ function getPrefs(prefs, options, stats) {
       defValue: specialStr.error,
     };
     pref.name = prefName;
+    // ToDo: Relable "user set" to "modified"
+    //       https://bugzilla.mozilla.org/show_bug.cgi?id=1345055
     if(pref.name.length > stats.maxPrefNameLen) {
       stats.maxPrefNameLen = pref.name.length;
     }
