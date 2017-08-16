@@ -10,60 +10,77 @@
 // The default options will suffice for basic use.  You can adjust these to
 // optimize the output for specific tasks and work flows.
 var options = {
-  exportFormat:          "txt",           // "txt", "csv", "js", "json"
-  showResultsDialog:     false,           // Always show results dialog with stats?
-  performFileSave:       true,            // In case you only want to see stats
-  addToRecentDocs:       false,           // A file picker option
+  exportFormat:         "txt",           // "txt", "csv", "js", "json"
+  showResultsDialog:    false,           // Always show results dialog with stats?
+  performFileSave:      true,            // In case you only want to see stats
+  addToRecentDocs:      false,           // A file picker option
   filename: {
-    base:                "ExportedPrefs", // Base portion of filename
-    reflectsApp:         true,            // Prepend app info to base?
-    reflectsFiltering:   true,            // Append -Filtered to base when filtering?
+    base:               "ExportedPrefs", // Base portion of filename
+    reflectsApp:        true,            // Prepend app info to base?
+    reflectsFiltering:  true,            // Append -Filtered to base when filtering?
   },
   txt: {
-    separator:           " • ",           // Separator between fields
-    appendStatsToOutput: false,           // Append stats to output?
+    separator:          " • ",           // Separator between fields
+    appendStats:        false,           // Append stats to output?
   },
   txtCsv: {
-    outputPrefName:      true,            // Output pref name field?
-    outputPrefStatus:    true,            // Output pref status field?
-    outputPrefType:      true,            // Output pref type field?
-    outputPrefValue:     true,            // Output pref value field?
-    outputPrefDefValue:  true,            // Output pref default value field?
-    outputHeader:        true,            // Output header with field descriptions?
+    outputPrefName:     true,            // Output pref name field?
+    outputPrefStatus:   true,            // Output pref status field?
+    outputPrefType:     true,            // Output pref type field?
+    outputPrefValue:    true,            // Output pref value field?
+    outputPrefDefValue: true,            // Output pref default value field?
+    outputHeader:       true,            // Output header with field descriptions?
   },
   js: {
-    funcName:            "user_pref",     // Function name for pref calls
-    useDefValue:         false,           // Use default value instead of user value?
-    includeWarning:      true,            // Warning about function call use?
+    funcName:           "user_pref",     // Function name for pref calls
+    useDefValue:        false,           // Use default value instead of user value?
+    includeWarning:     true,            // Warning about function call use?
   },
   txtCsvJs: {
-    endOfLine:           "\r\n",          // Line terminator
+    endOfLine:          "\r\n",          // Line terminator
+  },
+  outputStr: {
+    prefNameHdr:        "<PREFNAME>",       // Pref name header field
+    prefStatusHdr:      "<STATUS>",         // Pref status header field
+    prefTypeHdr:        "<TYPE>",           // Pref type header field
+    prefValueHdr:       "<VALUE>",          // Pref value header field
+    prefDefValueHdr:    "<DEFAULTVALUE>",   // Pref default value header field
+    statusLocked:       "locked",           // Shows pref is locked
+    statusDefault:      "default",          // Shows pref has default value
+    statusNotDefault:   "userset",          // Shows pref has non default value
+    typeInteger:        "integer",          // Shows pref is integer type
+    typeBoolean:        "boolean",          // Shows pref is boolean type
+    typeString:         "string",           // Shows pref is string type
+    typeInvalid:        "<TYPE_INVALID>",   // Shows pref has an invalid type
+    typeUnknown:        "<TYPE_UNKNOWN>",   // Shows pref has no known type
+    noDefValue:         "<NODEFAULTVALUE>", // Used when there is no default value
+    error:              "<ERROR>",          // Would appear if code is broken
   },
   misc: {
-    prefRoot:            "",              // Can be adjusted to export sub-branches
-    caseSensitiveSort:   true,            // Determines pref output order
-    logNonAsciiChars:    false,           // Log non-ASCII prefs to console?
+    prefRoot:           "",              // Can be adjusted to export sub-branches
+    caseSensitiveSort:  true,            // Determines pref output order
+    logNonAsciiChars:   false,           // Log non-ASCII prefs to console?
   },
   prefilter: {
     status: {
-      incUserset:        true,            // Include prefs with status userset?
-      incDefault:        true,            // Include prefs with status default?
-      incLocked:         true,            // Include prefs with status locked?
+      incUserset:       true,            // Include prefs with status userset?
+      incDefault:       true,            // Include prefs with status default?
+      incLocked:        true,            // Include prefs with status locked?
     },
     type: {
-      incBoolean:        true,            // Include prefs with type boolean?
-      incInteger:        true,            // Include prefs with type integer?
-      incString:         true,            // Include prefs with type string?
-      incInvalid:        true,            // Include prefs with type invalid?
-      incUnknown:        true,            // Include prefs with type unknown?
+      incBoolean:       true,            // Include prefs with type boolean?
+      incInteger:       true,            // Include prefs with type integer?
+      incString:        true,            // Include prefs with type string?
+      incInvalid:       true,            // Include prefs with type invalid?
+      incUnknown:       true,            // Include prefs with type unknown?
     },
   },
   filter: {
-    include:             undefined,       // Include if matched
-    exclude:             undefined,       // Exclude if matched (priority)
-    reMatchPrefName:     true,            // Apply RegExps to pref name
-    reMatchPrefValue:    true,            // Apply RegExps to pref value
-    debug:               false,           // In case of trouble with filtering
+    include:            undefined,       // Include if matched
+    exclude:            undefined,       // Exclude if matched (priority)
+    reMatchPrefName:    true,            // Apply RegExps to pref name
+    reMatchPrefValue:   true,            // Apply RegExps to pref value
+    debug:              false,           // In case of trouble with filtering
   },
 };
 
@@ -103,18 +120,6 @@ var stats = {
   numPrefsForExport   : 0,
 };
 var statsTableWidth = 27;
-var specialStr = {
-  // These can appear in output
-  prefNameHdr:     "<PREFNAME>",
-  prefStatusHdr:   "<STATUS>",
-  prefTypeHdr:     "<TYPE>",
-  prefValueHdr:    "<VALUE>",
-  prefDefValueHdr: "<DEFAULTVALUE>",
-  error:           "<ERROR>",
-  noDefValue:      "<NODEFAULTVALUE>",
-  typeInvalid:     "<TYPE_INVALID>",
-  typeUnknown:     "<TYPE_UNKNOWN>",
-};
 
 // ToDo: Structure
 // ToDo: Line lengths
@@ -147,7 +152,7 @@ getPrefs(prefs, options, stats);
 var fileSaveResultMsg = "File save disabled by options";
 if(options.performFileSave) {
   var output = getOutput(prefs, stats, options);
-  if((options.exportFormat === "txt") && options.txt.appendStatsToOutput) {
+  if((options.exportFormat === "txt") && options.txt.appendStats) {
     output += "\n\n" + gpe.name + " stats:\n\n";
     Object.keys(stats).forEach(function(key) {
       output += getNameValueRow(key, stats[key], statsTableWidth) + "\n";
@@ -198,7 +203,7 @@ log("Finished");
 
 // Functions
 function getPrefs(prefs, options, stats) {
-  // ToDo: Revisit use of both branches
+  // ToDo: Revisit use of and comparisons of both branches
   var defBranch = Services.prefs.getDefaultBranch(options.misc.prefRoot);
   var defPrefNames = defBranch.getChildList("");
   var userBranch = Services.prefs.getBranch(options.misc.prefRoot);
@@ -234,34 +239,33 @@ function getPrefs(prefs, options, stats) {
   // https://dxr.mozilla.org/mozilla-release/source/toolkit/components/viewconfig/content/config.js
   prefNames.forEach(function(prefName) {
     var pref = {
-      name:     specialStr.error,
-      status:   specialStr.error,
-      type:     specialStr.error,
-      value:    specialStr.error,
-      defValue: specialStr.error,
+      name:     options.outputStr.error,
+      status:   options.outputStr.error,
+      type:     options.outputStr.error,
+      value:    options.outputStr.error,
+      defValue: options.outputStr.error,
     };
     pref.name = prefName;
-    // ToDo: Relabel "user set" to "modified" https://bugzilla.mozilla.org/show_bug.cgi?id=1345055
     if(pref.name.length > stats.maxPrefNameLen) {
       stats.maxPrefNameLen = pref.name.length;
     }
     stats.numPrefs++;
     if(userBranch.prefIsLocked(pref.name)) {
-      pref.status = "locked";
+      pref.status = options.outputStr.statusLocked;
       stats.numLockedPrefs++;
     }
     else if(userBranch.prefHasUserValue(pref.name)) {
-      pref.status = "userset";
+      pref.status = options.outputStr.statusNotDefault;
       stats.numUsersetPrefs++;
     }
     else {
-      pref.status = "default";
+      pref.status = options.outputStr.statusDefault;
       stats.numDefaultPrefs++;
     }
     var prefType = userBranch.getPrefType(pref.name);
     switch(prefType) {
       case userBranch.PREF_BOOL:
-        pref.type = "boolean";
+        pref.type = options.outputStr.typeBoolean;
         stats.numBooleanPrefs++;
         pref.value = userBranch.getBoolPref(pref.name);
         stats.numUserValues++;
@@ -270,11 +274,11 @@ function getPrefs(prefs, options, stats) {
           stats.numDefValues++;
         }
         catch(e) {
-          pref.defValue = specialStr.noDefValue;
+          pref.defValue = options.outputStr.noDefValue;
         }
         break;
       case userBranch.PREF_INT:
-        pref.type = "integer";
+        pref.type = options.outputStr.typeInteger;
         stats.numIntegerPrefs++;
         pref.value = userBranch.getIntPref(pref.name);
         stats.numUserValues++;
@@ -283,11 +287,11 @@ function getPrefs(prefs, options, stats) {
           stats.numDefValues++;
         }
         catch(e) {
-          pref.defValue = specialStr.noDefValue;
+          pref.defValue = options.outputStr.noDefValue;
         }
         break;
       case userBranch.PREF_STRING:
-        pref.type = "string";
+        pref.type = options.outputStr.typeString;
         stats.numStringPrefs++;
         // ToDo: branch.getCharPref vs Services.prefs.getStringPref
         //       nsIPrefBranch should have methods to get/set unicode strings
@@ -342,21 +346,21 @@ function getPrefs(prefs, options, stats) {
           }
         }
         catch(e) {
-          pref.defValue = specialStr.noDefValue;
+          pref.defValue = options.outputStr.noDefValue;
         }
         break;
       case userBranch.PREF_INVALID:
         log("Invalid pref type found for " + pref.name);
-        pref.type = specialStr.typeInvalid;
-        pref.value = specialStr.typeInvalid;
-        pref.defValue = specialStr.typeInvalid;
+        pref.type = options.outputStr.typeInvalid;
+        pref.value = options.outputStr.typeInvalid;
+        pref.defValue = options.outputStr.typeInvalid;
         stats.numInvalidTypes++;
         break;
       default:
         log("Unknown pref type (" + prefType + ") found for " + pref.name);
-        pref.type = specialStr.typeUnknown,
-        pref.value = specialStr.typeUnknown,
-        pref.defValue = specialStr.typeUnknown,
+        pref.type = options.outputStr.typeUnknown,
+        pref.value = options.outputStr.typeUnknown,
+        pref.defValue = options.outputStr.typeUnknown,
         stats.numUnknownTypes++;
         break;
     }
@@ -378,8 +382,8 @@ function prefPassesPrefilters(pref, prefilter, stats) {
      ((pref.type === "boolean") && !prefilter.type.incBoolean) ||
      ((pref.type === "integer") && !prefilter.type.incInteger) ||
      ((pref.type === "string") && !prefilter.type.incString) ||
-     ((pref.type === specialStr.typeInvalid) && !prefilter.type.invalid) ||
-     ((pref.type === specialStr.typeUnknown) && !prefilter.type.unknown)) {
+     ((pref.type === options.outputStr.typeInvalid) && !prefilter.type.invalid) ||
+     ((pref.type === options.outputStr.typeUnknown) && !prefilter.type.unknown)) {
     included = false;
     stats.numExcByPrefilter++;
   }
@@ -498,19 +502,19 @@ function getOutput(prefs, stats, options) {
     if(options.txtCsv.outputHeader) {
       var fields = [];
       if(options.txtCsv.outputPrefName) {
-        fields.push(specialStr.prefNameHdr);
+        fields.push(options.outputStr.prefNameHdr);
       }
       if(options.txtCsv.outputPrefStatus) {
-        fields.push(specialStr.prefStatusHdr);
+        fields.push(options.outputStr.prefStatusHdr);
       }
       if(options.txtCsv.outputPrefType) {
-        fields.push(specialStr.prefTypeHdr);
+        fields.push(options.outputStr.prefTypeHdr);
       }
       if(options.txtCsv.outputPrefValue) {
-        fields.push(specialStr.prefValueHdr);
+        fields.push(options.outputStr.prefValueHdr);
       }
       if(options.txtCsv.outputPrefDefValue) {
-        fields.push(specialStr.prefDefValueHdr);
+        fields.push(options.outputStr.prefDefValueHdr);
       }
       if(options.exportFormat === "csv") {
         fields.forEach(function(f, i) {
@@ -543,6 +547,11 @@ function getOutput(prefs, stats, options) {
         else fields.push(pref.defValue);
       }
       if(options.exportFormat === "csv") {
+        // Unusually long pref fields (which some extensions have made possible)
+        // can lead to the creation of a csv field that will exceed the maximum
+        // number of characters allowed by some csv processing applications.  I
+        // see 32,767 chars mentioned for Excel, and 50,000 chars mentioned for
+        // Google Sheets.
         fields.forEach(function(f, i) {
           fields[i] = csvConvert(f);
         });
@@ -751,13 +760,13 @@ function writeFile(file, data) {
     result = true;
   }
   catch(e if (e.result === Components.results.NS_ERROR_FILE_IS_LOCKED)) {
-    errorAlert("Write failed because file is locked:\n" + file.path);
+    errorAlert("Write failed because file is locked:\n\n" + file.path);
   }
   catch(e if (e.result === Components.results.NS_ERROR_FILE_READ_ONLY)) {
-    errorAlert("Write failed because file is readonly:\n" + file.path);
+    errorAlert("Write failed because file is readonly:\n\n" + file.path);
   }
   catch(e if (e.result === Components.results.NS_ERROR_FILE_ACCESS_DENIED)) {
-    errorAlert("Write failed because access is denied:\n" + file.path);
+    errorAlert("Write failed because access is denied:\n\n" + file.path);
   }
   catch(e) {
     errorAlert(e.toString(), true);
