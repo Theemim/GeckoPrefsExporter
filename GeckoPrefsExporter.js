@@ -13,6 +13,7 @@ var options = {
   exportFormat:         "txt",           // "txt", "csv", "js", "json"
   showResultsDialog:    false,           // Always show results dialog with stats?
   performFileSave:      true,            // In case you only want to see stats
+  useFilePicker:        true,            // Use file picker or save to desktop?
   addToRecentDocs:      false,           // A file picker option
   filename: {
     base:               "ExportedPrefs", // Base portion of filename
@@ -120,89 +121,112 @@ var stats = {
   numPrefsForExport   : 0,
 };
 var statsTableWidth = 27;
+var output = "";
 
-// ToDo: Structure
-// ToDo: Line lengths
-log(gpe.desc + " Started");
-// Some explicit checking first
-if(typeof(Components) !== "object") {
-  fatalError("Components is not an object.  Are you running in browser context?", false);
-}
-["interfaces", "classes", "utils", "results"].forEach(function(p) {
-  if(typeof(Components[p]) !== "object") {
-    fatalError("Components." + p + " is not an object.  Are you running in browser context?", false);
-  }
-});
-if(typeof(Services) === "undefined") {
-  log("Services is undefined.  Importing...");
-  Components.utils.import("resource://gre/modules/Services.jsm");
-  if(typeof(Services) !== "object") {
-    fatalError("Can't import resource://gre/modules/Services.jsm", false);
-  }
-}
-if(typeof(FileUtils) === "undefined") {
-  log("FileUtils is undefined.  Importing...");
-  Components.utils.import("resource://gre/modules/FileUtils.jsm");
-  if(typeof(FileUtils) !== "object") {
-    fatalError("resource://gre/modules/FileUtils.jsm", true);
-  }
-}
-// The heart of it
-getPrefs(prefs, options, stats);
-var fileSaveResultMsg = "File save disabled by options";
+// ToDo: Structure & line lengths
+startup();
+getPrefs();
 if(options.performFileSave) {
-  var output = getOutput(prefs, stats, options);
-  if((options.exportFormat === "txt") && options.txt.appendStats) {
-    output += "\n\n" + gpe.name + " stats:\n\n";
-    Object.keys(stats).forEach(function(key) {
-      output += getNameValueRow(key, stats[key], statsTableWidth) + "\n";
-    });
-    output += "\n";
-  }
-  var outputFilename = getFilename(options);
-  var file;
-  // ToDo: Recheck after fp.open change
-  if(typeof(window) !== "undefined") {
-    // File picker can be used
-    file = pickOutputFile("Save " + gpe.name + " Save File As", outputFilename, options.exportFormat, options.addToRecentDocs);
-  }
-  else {
-    // ToDo: Autoconfig environment worth supporting?
-    file = Services.dirsvc.get("Desk", Components.interfaces.nsILocalFile);
-    file.append(outputFilename);
-    var text = "\nSave to " + file.path + "?\n\n";
-    if(Services.prompt.confirm(null, gpe.name, text) !== true) {
-      file = undefined;
-    }
-  }
-  if(file) {
-    if(writeFile(file, output)) {
-      fileSaveResultMsg = "Export successful";
-    }
-    else {
-      fileSaveResultMsg = "Export failed";
-    }
-  }
-  else {
-    fileSaveResultMsg = "Export cancelled";
-  }
+  prepareOutput();
+  saveOutput(showResultsAndShutdown);
 }
-Object.keys(stats).forEach(function(key) {
-  log(getNameValueRow(key, stats[key], statsTableWidth));
-});
-log(fileSaveResultMsg);
-if(options.showResultsDialog) {
-  var text = fileSaveResultMsg + "\n\n";
-  Object.keys(stats).forEach(function(key) {
-    text += key + ":  " + stats[key] + "\n";
-  });
-  Services.prompt.alert(null, gpe.name, text);
-}
-log("Finished");
+else showResultsAndShutdown("File save disabled by options");
 
 
 // Functions
-function getPrefs(prefs, options, stats) {
+function startup() {
+  // Verify that required components are available
+  if(typeof(Components) !== "object") {
+    fatalError("Components is not an object.  Are you running in browser context?", false);
+  }
+  ["interfaces", "classes", "utils", "results"].forEach(function(p) {
+    if(typeof(Components[p]) !== "object") {
+      fatalError("Components." + p + " is not an object.  Are you running in browser context?", false);
+    }
+  });
+  if(typeof(Services) === "undefined") {
+    log("Services is undefined.  Importing...");
+    Components.utils.import("resource://gre/modules/Services.jsm");
+    if(typeof(Services) !== "object") {
+      fatalError("Can't import resource://gre/modules/Services.jsm", false);
+    }
+  }
+  if(typeof(FileUtils) === "undefined") {
+    log("FileUtils is undefined.  Importing...");
+    Components.utils.import("resource://gre/modules/FileUtils.jsm");
+    if(typeof(FileUtils) !== "object") {
+      fatalError("resource://gre/modules/FileUtils.jsm", true);
+    }
+  }
+  log(gpe.desc + " Started");
+}
+
+function shutdown() {
+  log("Finished");
+}
+
+function showResultsAndShutdown(resultMsg) {
+  Object.keys(stats).forEach(function(key) {
+    log(getNameValueRow(key, stats[key], statsTableWidth));
+  });
+  log(resultMsg);
+  if(options.showResultsDialog) {
+    var text = resultMsg + "\n\n";
+    Object.keys(stats).forEach(function(key) {
+      text += key + ":  " + stats[key] + "\n";
+    });
+    text += "\n";
+    Services.prompt.alert(null, gpe.name, text);
+  }
+  shutdown();
+}
+
+function saveOutput(cbShowResultsAndShutdown) {
+  var outputFilename = getFilename(options);
+  if((typeof(window) !== "undefined") && options.useFilePicker) {
+    var fp = Components.classes["@mozilla.org/filepicker;1"].createInstance(Components.interfaces.nsIFilePicker);
+    fp.init(window, "Save " + gpe.name + " Save File As", fp.modeSave);
+    fp.addToRecentDocs = options.addToRecentDocs;
+    fp.defaultString = outputFilename;
+    fp.defaultExtension = options.exportFormat;
+    fp.appendFilter(options.exportFormat.toUpperCase() + " Files", "*." + options.exportFormat);
+    fp.appendFilters(fp.filterAll);
+    var fpCallbackObj = {
+      done: function(result) {
+        if(result != fp.returnCancel) {
+          if(writeFile(fp.file, output)) {
+            cbShowResultsAndShutdown("Export successful");
+          }
+          else {
+            cbShowResultsAndShutdown("Export failed");
+          }
+        }
+        else {
+          cbShowResultsAndShutdown("Export cancelled");
+        }
+      }
+    };
+    fp.open(fpCallbackObj);
+  }
+  else {
+    var file = Services.dirsvc.get("Desk", Components.interfaces.nsIFile);
+    file.append(outputFilename);
+    var text = "\nSave to " + file.path + "?\n\n";
+    if(Services.prompt.confirm(null, gpe.name, text) === true) {
+      if(writeFile(file, output)) {
+        cbShowResultsAndShutdown("Export successful");
+      }
+      else {
+        cbShowResultsAndShutdown("Export failed");
+      }
+    }
+    else {
+      cbShowResultsAndShutdown("Export cancelled");
+    }
+  }
+}
+
+function getPrefs() {
   // ToDo: Revisit use of and comparisons of both branches
   var defBranch = Services.prefs.getDefaultBranch(options.misc.prefRoot);
   var defPrefNames = defBranch.getChildList("");
@@ -488,8 +512,7 @@ function prefPassesFilters(pref, filter, stats) {
   return(included);
 }
 
-function getOutput(prefs, stats, options) {
-  var output = "";
+function prepareOutput() {
   if(options.exportFormat === "json") {
     output = JSON.stringify(prefs);
     // Not strictly necessary, but why not verify this before export
@@ -558,6 +581,13 @@ function getOutput(prefs, stats, options) {
       }
       output += fields.join(separator) + options.txtCsvJs.endOfLine;
     });
+    if((options.exportFormat === "txt") && options.txt.appendStats) {
+      output += "\n\n" + gpe.name + " stats:\n\n";
+      Object.keys(stats).forEach(function(key) {
+        output += getNameValueRow(key, stats[key], statsTableWidth) + "\n";
+      });
+      output += "\n";
+    }
   }
   else if(options.exportFormat === "js") {
     if(options.js.includeWarning) {
@@ -714,48 +744,27 @@ function getFilename(options) {
   return(filename + "." + options.exportFormat);
 }
 
-function pickOutputFile(title, defaultFilename, defaultExtension, addToRecentDocs) {
-  var fp = Components.classes["@mozilla.org/filepicker;1"].createInstance(Components.interfaces.nsIFilePicker);
-  fp.init(window, title, fp.modeSave);
-  fp.addToRecentDocs = addToRecentDocs;
-  fp.defaultString = defaultFilename;
-  fp.defaultExtension = defaultExtension;
-  switch(defaultExtension) {
-    case "txt":
-    case "text":
-      fp.appendFilters(fp.filterText);
-      break;
-    case "csv":
-      fp.appendFilter("CSV Files", "*.csv");
-      break;
-    case "json":
-      fp.appendFilter("JSON Files", "*.json");
-      break;
-    case "js":
-      fp.appendFilter("JavaScript Files", "*.js");
-      break;
-    default:
-      break;
-  }
-  fp.appendFilters(fp.filterAll);
-  // ToDo: fp.open
-  if(fp.show() != fp.returnCancel) {
-    return(fp.file);
-  }
-  return(undefined);
-}
-
-function writeFile(file, data) {
-  // ToDo: OS.File
+function writeFile(file, str) {
   var result = false;
   try {
+    // ToDo:
+    // let encoder = new TextEncoder();
+    // let array = encoder.encode(str);
+    // OS.File.writeAtomic(file.path, array, {tmpPath: file.path + ".tmp"}).then(
+    //   function() {
+    //     // Success;
+    //   },
+    //   function(ex) {
+    //     // Failure
+    //   }
+    // );
     var foStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
                              .createInstance(Components.interfaces.nsIFileOutputStream);
     foStream.init(file, 0x02 | 0x08 | 0x20, parseInt("0666", 8), 0);
     var converter = Components.classes["@mozilla.org/intl/converter-output-stream;1"]
                               .createInstance(Components.interfaces.nsIConverterOutputStream);
     converter.init(foStream, "UTF-8", 0, 0);
-    converter.writeString(data);
+    converter.writeString(str);
     converter.close();
     result = true;
   }
