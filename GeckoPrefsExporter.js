@@ -758,6 +758,12 @@ function writeFile(file, str) {
     //     // Failure
     //   }
     // );
+    //
+    // ToDo:
+    // Remove nsIConverterOutputStream
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=1347888
+    // Provide chrome JS helpers for reading UTF-8 as string and writing string as UTF-8 file
+    // https://bugzilla.mozilla.org/show_bug.cgi?id=1353285
     var foStream = Components.classes["@mozilla.org/network/file-output-stream;1"]
                              .createInstance(Components.interfaces.nsIFileOutputStream);
     foStream.init(file, 0x02 | 0x08 | 0x20, parseInt("0666", 8), 0);
